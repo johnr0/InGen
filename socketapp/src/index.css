@@ -41,16 +41,6 @@ h1, h2, h3, h4, h5, h6{
   color: white;
 }
 
-.moodboard_main_controller{
-  position: absolute;
-  width: 50px; 
-  height: 195px;
-  
-  left: 10px;
-  top: 10px;
-  z-index: 10000;
-}
-
 .moodboard_search_pane{
   position: absolute;
   width: calc(100% - 20px);
@@ -110,18 +100,19 @@ h1, h2, h3, h4, h5, h6{
 }
 
 .controller_button{
-  margin-bottom: 5px;
+  margin-right: 5px;
   width: 40px;
   height: 40px;
   font-size: 40px;
   text-align: center;
   color: white;
   cursor: default;
+  line-height: normal;
 
 }
 
 .controller_button_icon{
-  font-size: 40px;
+  font-size: 35px;
   
 }
 
@@ -174,36 +165,7 @@ h1, h2, h3, h4, h5, h6{
   background:transparent
 }
 
-.sketchpad_main_controller{
-  position: absolute;
-  width: 50px; 
-  height: 270px;
-  
-  left: 10px;
-  top: 10px;
-  
-}
 
-.sketchpad_main_controllerAI{
-  position: absolute;
-  width: 50px; 
-  height: 312px;
-  
-  left: 10px;
-  top: 10px;
-  
-}
-
-.sketchpad_layer_controller{
-  position: absolute;
-  width: 50px; 
-  height: 390px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  right: 10px;
-  top: 10px;
-  z-index: 10000;
-}
 
 .layer_box::-webkit-scrollbar {
   display: none;
@@ -215,23 +177,31 @@ h1, h2, h3, h4, h5, h6{
 scrollbar-width: none;  /* Firefox */
 }
 
-.sketchpad_brush_controller{
+.brush_controller{
   position: absolute;
-  width: 50px; 
-  height: 100px;
-  
-  left: 60px;
-  top: 0px;  
+  width: 90px; 
+  height: 50px;
+  display: flex;
+  left: 80px;
+  top: 52px;  
   z-index: 10000; 
 }
 
-.sketchpad_brush_size_controller{
+.brush_size_controller{
   position: absolute;
   width: 200px; 
-  height: 200px;
+  height: 210px;
   
-  left: 60px;
-  top: 0px;   
+  left: 50px;
+  top: 50px;   
+}
+.AI_brush_size_controller{
+  position: absolute;
+  width: 200px; 
+  height: 210px;
+  
+  left: 175px;
+  bottom: 0px;   
 }
 
 input[type=range][orient=vertical]
@@ -244,23 +214,15 @@ input[type=range][orient=vertical]
   margin: 0;
 }
 
-.sketchpad_erase_controller{
+.erase_controller{
   position: absolute;
   width: 50px; 
-  height: 45px;
-  
-  left: 60px;
-  top: 0px;   
+  height: 50px;
+  padding-top: 6px !important;
+  left: 130px;
+  top: 52px;   
 }
 
-.sketchpad_style_controller{
-  position: absolute;
-  width: 314px; 
-  height: 46px;
-  
-  left: 60px;
-  top: 0px;   
-}
 
 .sketchpad_style_controller2{
   position: absolute;
@@ -271,18 +233,7 @@ input[type=range][orient=vertical]
   bottom: 0px;   
 }
 
-.sketchpad_erase_size_controller{
-  position: absolute;
-  width: 200px; 
-  height: 200px;
-  
-  left: 60px;
-  top: 0px;   
-}
 
-.brush_cursor{
-  /* cursor: url('/static/brush.png'), auto; */
-}
 
 .login{
   text-align: center;
@@ -366,6 +317,120 @@ input[type=range][orient=vertical]
   padding-top: 19px;
 }
 
-/* .prompt_controller{
+.prompt_controller{
+  width: 50%;
+  max-width: 500px;
+  height: calc(100% - 55px);  
+  left: 0;
+  bottom: 0;
+  z-index: 1;
+  position: absolute;
+  border-bottom-left-radius: 0 !important;
+  border-top-left-radius: 0 !important;
+}
+
+.main_controller{
+  padding-top: 0px !important;
+  position: absolute;
+  width: 265px; 
+  height: 50px;
+  z-index: 10000;
+  left: 0px;
+  top: 0px;
+  display: flex;
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
   
-} */
+}
+
+.layer_controller{
+  position: absolute;
+  width: 50px; 
+  height: 390px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  right:0;
+  top:0;
+  border-top-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+.erase_size_controller{
+  position: absolute;
+  width: 200px; 
+  height: 210px;
+  
+  left: 0px;
+  top: 50px;   
+}
+
+.prompt_list{
+  height: 25%;
+  display: flex;
+  flex-direction: column;
+  margin-left: 5px;
+  margin-right: 8px;
+}
+
+.prompt_palette{
+  height: 50%;
+  margin-left: 5px;
+  margin-right: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.directional_prompts{
+  height: 12.5%;
+  margin-left: 5px;
+  margin-right: 8px;
+  display:flex;
+  flex-direction:column;
+}
+
+.brush_config{
+  height: 12.5%;
+  margin-left: 5px;
+  margin-right: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+
+input[type="color"]::-webkit-color-swatch-wrapper {
+	padding: 0;
+}
+
+.prompt_textarea{
+  color:white; 
+  padding: 0; 
+  resize: none;
+  border-top: 0px solid transparent;
+  border-left: 0px solid transparent;
+  border-right: 0px solid transparent;
+  border-bottom: 1px solid white;
+  outline: none;
+  height: 18px;
+}
+
+.prompt_color input[type="color"]::-webkit-color-swatch{
+	border: none;
+  border-radius: 10px;
+}
+
+.prompt_color2 input[type="color"]::-webkit-color-swatch{
+	border: none;
+}
+
+input[type='color']:disabled {
+  border:none;
+  background-color: white;
+}
+
+.intext_number_input{
+  height: 22.5px !important;
+  border: none !important;
+  margin: 0px !important;
+}

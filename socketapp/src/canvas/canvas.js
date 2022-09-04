@@ -3,13 +3,16 @@ import CanvasBody from './canvas_body'
 import LayerController from './layer_controller'
 import MainController from './main_controller'
 // import SketchpadUndo from './sketchpad_undo'
+import PromptController from './prompt_controller'
+import AIDrawCanvas from './AI_draw_canvas'
 
 class Canvas extends React.Component {
     state = {
         ...this.state,
         boardname:'sketchpad',
-        control_state: 'move',
+        control_state: 'AI',
         action: 'idle',
+        client_id:  Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
         //control_state --> area, move, brush, erase, content_stamp, style_stamp
         // action --> move: idle, move_board
         //            brush: idle, brush
@@ -20,8 +23,8 @@ class Canvas extends React.Component {
         boardheight: 0,
         boardwidth: 0,
 
-        pixelwidth: 1920,
-        pixelheight: 1080,
+        pixelwidth: 960,
+        pixelheight: 540,
 
         // variables about moving board
         move_board_init: undefined,
@@ -88,8 +91,78 @@ class Canvas extends React.Component {
 
         undo_states: [],
         redo_states: [],
+
+        // prompt relevant
+        prompts: [
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'white sheep on a plain',
+                position: [0.2,0.1],
+                color: '#ffeeee',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'black sheep wall',
+                position: [0.5,0.5],
+                color: '#333333',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'oil painting',
+                position: [0.7,0.3],
+                color: '#8888ff',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'white sheep on a plain',
+                position: [0.8,0.9],
+                color: '#ffeeee',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'oil painting',
+                position: [0.8,0.8],
+                color: '#8888ff',
+                istext:true
+
+            }
+        ],
+        prompt_groups: [
+            [0, 1, 2], [3, 4]
+        ],
+        directional_prompts: [
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                promptA: 'rough',
+                colorA: '#ffaaaa',
+                promptB: 'flat',
+                colorB: '#aaffaa',
+                isAtext: true,
+                isBtext: true,
+                value: 0,
+            }
+        ],
+        AI_brush_size: 100,
+        selected_prompt: undefined,
+        guidance_scale: 7,
+        single_stroke_ratio: 20,
+        gen_steps: 100,
+        overcoat_ratio: 10, 
+        multi_strokes:false,
+        gen_tick: -1,
+        ratioData: {},
+
     }
 
+    AIDrawCanvas = React.createRef()
     // TODO lasso tool - nonlasso-based resize
 
     componentDidMount(){
@@ -123,6 +196,8 @@ class Canvas extends React.Component {
                         }
                     }
                 }   
+            }else if(e.key=='x'){
+                _this.setState({multi_strokes:true})
             }else if(e.key=='Shift'){
                 _this.setState({shift_pressed:true})
             }else if(e.key=='Meta'){
@@ -140,6 +215,13 @@ class Canvas extends React.Component {
                         _this.setState({control_state: _this.state.prev_shift_key, action: 'idle'})
                     }
                 }
+            }else if(e.key=='x'){
+                _this.setState({multi_strokes:false}, function(){
+                    if(this.state.current_layer==-1 || this.state.selected_prompt==undefined || this.state.stroke_id==undefined){
+                        return
+                    }
+                    _this.AIDrawCanvas.current.initGen();
+                })
             }else if(e.key=='Shift'){
                 _this.setState({shift_pressed:false})
             }else if(e.key=='Meta'){
@@ -255,17 +337,18 @@ class Canvas extends React.Component {
         }else if(this.state.control_state=='brush' && this.state.action=='idle'){
             this.undo_store()
             this.brushInit(e)
+        }else if(this.state.control_state=='AI' && this.state.action=='idle'){
+            // this.undo_store()
+            this.AIDrawCanvas.current.AIbrushInit(e)
+            
         }else if(this.state.control_state=='erase' && this.state.action=='idle'){
             this.undo_store()
             this.eraseInit(e)
         }else if(this.state.control_state=='brush' && this.state.action=='size'){
-            this.undo_store()
+            // this.undo_store()
             this.setState({action:'idle'})
         }else if(this.state.control_state=='erase' && this.state.action=='size'){
-            this.undo_store()
-            this.setState({action:'idle'})
-        }else if(this.state.control_state=='style-stamp' && (this.state.action=='size'||this.state.action=='blur')){
-            this.undo_store()
+            // this.undo_store()
             this.setState({action:'idle'})
         }else if(this.state.control_state=='area' && this.state.action=='idle'){
             this.undo_store()
@@ -278,6 +361,8 @@ class Canvas extends React.Component {
                 this.moveBoardInit(e)
             }
             
+        }else if(this.state.control_state=='AI' && this.state.action=='size'){
+            this.setState({action:'idle'})
         }
     }
 
@@ -344,6 +429,9 @@ class Canvas extends React.Component {
             this.resizeLayerMove(e)
         }else if(this.state.control_state=='content-stamp' && this.state.action=='content-stamp'){
             this.contentStampMove(e)
+        }else if(this.state.control_state=='AI' && this.state.action=='AI_brush'){
+            this.AIDrawCanvas.current.AIbrushMove(e)
+            
         }
 
     }
@@ -351,6 +439,7 @@ class Canvas extends React.Component {
 
 
     sketchPadMouseMoveEnd(e){
+        e.stopPropagation()
         console.log('eeeeeennnnnnndddd')
         if((this.state.control_state=='move'||this.state.control_state=='move-layer') && this.state.action=='move_board'){
             this.moveBoardEnd(e)
@@ -368,6 +457,10 @@ class Canvas extends React.Component {
             this.resizeLayerEnd(e)
         }else if(this.state.control_state=='content-stamp' && this.state.action=='content-stamp'){
             this.contentStampEnd(e)
+        }else if(this.state.control_state=='AI' && this.state.action=='AI_brush'){
+            // this.undo_store()
+            this.AIDrawCanvas.current.AIbrushEnd(e)
+            
         }
     }
 
@@ -557,9 +650,6 @@ class Canvas extends React.Component {
         brush_pre_canvas.height = this.state.pixelheight
         var brush_pre_canvas_ctx = brush_pre_canvas.getContext('2d')
         brush_pre_canvas_ctx.lineJoin = brush_pre_canvas_ctx.lineCap = 'round'
-        
-        // console.log(brush_canvas.toDataURL())
-        cur_colored_brush_img.src = brush_canvas.toDataURL();
 
         var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer].layer_id)
         var cur_image = el.toDataURL()
@@ -573,20 +663,45 @@ class Canvas extends React.Component {
 
         var x = brush_cur[0]-this.state.brush_size/2;
         var y = brush_cur[1]-this.state.brush_size/2;
-        brush_pre_canvas_ctx.drawImage(cur_colored_brush_img, x, y);
 
-        if(this.state.lasso_img!=undefined){
-            brush_pre_canvas_ctx.globalCompositeOperation = 'destination-in'
-            brush_pre_canvas_ctx.drawImage(this.state.lasso_img, 0, 0, this.state.pixelwidth, this.state.pixelheight)
-            brush_pre_canvas_ctx.globalCompositeOperation = 'source-over'
+        var _this = this
+
+        cur_colored_brush_img.onload=function(){
+            
+            brush_pre_canvas_ctx.drawImage(this, x, y);
+
+            if(_this.state.lasso_img!=undefined){
+                brush_pre_canvas_ctx.globalCompositeOperation = 'destination-in'
+                brush_pre_canvas_ctx.drawImage(_this.state.lasso_img, 0, 0, _this.state.pixelwidth, _this.state.pixelheight)
+                brush_pre_canvas_ctx.globalCompositeOperation = 'source-over'
+            }
+            // move lasso image to context
+            ctx.drawImage(brush_pre_canvas, 0, 0)
+    
+            var Data_t = brush_pre_canvas_ctx.getImageData(0,0,_this.state.pixelwidth, _this.state.pixelheight)
+            // console.log(Data_t)
+            for(var idx=0; idx<this.width*this.height; idx++){
+                var w = idx%this.width
+                var h = parseInt(idx/this.width)
+
+                var idx_f = _this.state.pixelwidth*(parseInt(y)+h)+parseInt(x)+w
+                if(Data_t.data[idx_f*4+3]>0){
+                    _this.state.ratioData[_this.state.layers[_this.state.current_layer].layer_id][idx_f] = 100
+                }
+                
+            }
+
+            _this.setState({action:'brush', brush_cur:brush_cur, cur_colored_brush_img: cur_colored_brush_img, brush_pre_canvas:brush_pre_canvas, origin_image: cur_image})
+        
         }
-        // move lasso image to context
-        ctx.drawImage(brush_pre_canvas, 0, 0)
 
-        // brush_cur[0] = brush_cur[0]+this.state.brush_size/this.state.boardlength/this.state.boardzoom/2
-        // brush_cur[1] = brush_cur[1]+this.state.brush_size/this.state.boardlength/this.state.boardzoom/2
-        this.setState({action:'brush', brush_cur:this.getCurrentMouseOnBoard(e), cur_colored_brush_img: cur_colored_brush_img, brush_pre_canvas:brush_pre_canvas, origin_image: cur_image})
-       
+        
+        
+        // console.log(brush_canvas.toDataURL())
+        cur_colored_brush_img.src = brush_canvas.toDataURL();
+
+        
+        
     }
 
     distanceBetween(point1, point2){
@@ -602,7 +717,7 @@ class Canvas extends React.Component {
         var ctx = el.getContext('2d');
         var brush_pre_canvas = this.state.brush_pre_canvas
         var brush_pre_ctx = brush_pre_canvas.getContext('2d');
-        brush_pre_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
+        // brush_pre_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
 
         var brush_cur = this.getCurrentMouseOnBoard(e)
 
@@ -623,8 +738,7 @@ class Canvas extends React.Component {
         }
         // move lasso image to context
         ctx.drawImage(brush_pre_canvas, 0, 0)
-
-        this.setState({brush_cur:brush_cur})
+        this.setState({brush_cur:brush_cur, brush_pre_canvas:brush_pre_canvas })
 
 
     }
@@ -635,6 +749,17 @@ class Canvas extends React.Component {
         var cur_image = el.toDataURL()
         var layers = this.state.layers
         layers[this.state.current_layer].image = cur_image
+
+        var brush_pre_canvas = this.state.brush_pre_canvas
+        var brush_pre_ctx = brush_pre_canvas.getContext('2d');
+        var Data_t = brush_pre_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        console.log(brush_pre_canvas.toDataURL())
+        console.log(Data_t.data)
+        for(var idx=0; idx<this.state.ratioData[this.state.layers[this.state.current_layer].layer_id].length; idx++){
+            if(Data_t.data[idx*4+3]>0){
+                this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][idx] = 100
+            }
+        }
         
         // TODO add functions to update?
         this.setState({action:'idle', brush_cur:undefined, cur_colored_brush_img: undefined, brush_pre_canvas: undefined})
@@ -672,7 +797,19 @@ class Canvas extends React.Component {
             brush_pre_canvas_ctx.globalCompositeOperation='source-over'
         }
         ctx.drawImage(brush_pre_canvas, 0, 0)
-        brush_pre_canvas_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
+
+        // var Data_t = brush_pre_canvas_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        
+        // for(var idx=0; idx<this.state.pixelwidth*this.state.pixelheight; idx++){
+        //     if(Data_t.data[idx*4+3]==0){
+        //         this.state.ratioData[idx] = 0
+        //     }
+            
+        // }
+        
+        // brush_pre_canvas_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
+
+        
 
 
         this.setState({action:'erase', brush_cur: brush_cur, brush_pre_canvas: brush_pre_canvas, origin_image: cur_image})
@@ -686,7 +823,7 @@ class Canvas extends React.Component {
         var brush_pre_canvas = this.state.brush_pre_canvas
         var brush_pre_canvas_ctx = brush_pre_canvas.getContext('2d')
 
-        brush_pre_canvas_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
+        // brush_pre_canvas_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
 
         var brush_cur = this.getCurrentMouseOnBoard(e).slice()
 
@@ -712,7 +849,7 @@ class Canvas extends React.Component {
         // var brush_pre_canvas_ctx = brush_pre_canvas.getContext('2d')
         //draw init circle
         brush_pre_canvas_ctx.lineWidth = 1
-        brush_pre_canvas_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
+        // brush_pre_canvas_ctx.clearRect(0,0,this.state.pixelwidth,this.state.pixelheight);
         brush_pre_canvas_ctx.beginPath()
         brush_pre_canvas_ctx.arc(brush_cur[0], brush_cur[1], this.state.erase_size/2, 0, 2*Math.PI, false)
         brush_pre_canvas_ctx.fillStyle='black'
@@ -727,9 +864,17 @@ class Canvas extends React.Component {
         }
 
         ctx.drawImage(brush_pre_canvas, 0, 0)
+
+        // var Data_t = brush_pre_canvas_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        // for(var idx=0; idx<this.state.pixelwidth*this.state.pixelheight; idx++){
+        //     if(Data_t.data[idx*4+3]==0){
+        //         this.state.ratioData[idx] = 0
+        //     }
+            
+        // }
         
 
-        this.setState({brush_cur: brush_cur})
+        this.setState({brush_cur: brush_cur, brush_pre_canvas:brush_pre_canvas})
     }
 
     eraseEnd(e){
@@ -740,6 +885,16 @@ class Canvas extends React.Component {
         var cur_image = el.toDataURL()
         var layers = this.state.layers
         var brush_cur = this.getCurrentMouseOnBoard(e).slice()
+
+        var brush_pre_canvas = this.state.brush_pre_canvas
+        var brush_pre_canvas_ctx = brush_pre_canvas.getContext('2d')
+        var Data_t = brush_pre_canvas_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        for(var idx=0; idx<this.state.ratioData[this.state.layers[this.state.current_layer].layer_id].length; idx++){
+            if(Data_t.data[idx*4+3]>0){
+                this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][idx] = 0
+            }
+            
+        }
 
         // TODO add a function?
         var _this = this
@@ -811,10 +966,41 @@ class Canvas extends React.Component {
 
         // adjust_pre_canvas.getContext('2d') = 
         if(this.state.lasso.length>0){
-            this.setState({action:'move-layer', move_layer_init_pos: pos, adjust_pre_canvas: adjust_pre_canvas, init_lasso:this.state.lasso.slice(0), origin_image: cur_image})
+            var origin_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+            var moving_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+            var unlassoed_data = this.state.unlassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+            var lassoed_data = this.state.lassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+
+            for(var i=0; i<unlassoed_data.data.length; i+=4){
+                if(unlassoed_data.data[i+3]>0){
+                    origin_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+                }
+                if(lassoed_data.data[i+3]>0){
+                    
+                    moving_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+                }
+            }
+            this.setState({action:'move-layer', move_layer_init_pos: pos, adjust_pre_canvas: adjust_pre_canvas, 
+                init_lasso:this.state.lasso.slice(0), origin_image: cur_image,
+                origin_ratioData: origin_ratioData, moving_ratioData: moving_ratioData
+            })
         }else{
             console.log(JSON.parse(JSON.stringify(this.state.nonlasso_ret)))
-            this.setState({action:'move-layer', move_layer_init_pos: pos, adjust_pre_canvas: adjust_pre_canvas, init_nonlasso_ret:JSON.parse(JSON.stringify(this.state.nonlasso_ret)), origin_image: cur_image})
+            var origin_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+            var moving_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+            console.log(this.state.lassoed_canvas)
+            var lassoed_data = this.state.lassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+            
+            for(var i=0; i<lassoed_data.data.length; i+=4){
+                if(lassoed_data.data[i+3]>0){
+                    // console.log(lassoed_data.data[i+3])
+                    moving_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+                }
+            }
+            this.setState({action:'move-layer', move_layer_init_pos: pos, adjust_pre_canvas: adjust_pre_canvas, 
+                init_nonlasso_ret:JSON.parse(JSON.stringify(this.state.nonlasso_ret)), origin_image: cur_image,
+                origin_ratioData: origin_ratioData, moving_ratioData: moving_ratioData
+            })
         }
         this.undo_store()
         
@@ -840,6 +1026,26 @@ class Canvas extends React.Component {
 
         ctx.drawImage(adjust_pre_canvas, 0, 0)
 
+        // var new_ratioData = this.state.origin_ratioData.slice()
+        // var moving_ratioData = this.state.moving_ratioData
+        // var xtranslate = pos[0]-this.state.move_layer_init_pos[0]
+        // var ytranslate = pos[1]-this.state.move_layer_init_pos[1]
+        // for(var i=0; i<new_ratioData.length; i++){
+        //     var w = i%this.state.pixelwidth
+        //     var h = parseInt(i/this.state.pixelwidth)
+
+        //     var new_h=h-parseInt(ytranslate)
+        //     var new_w=w-parseInt(xtranslate)
+        //     if(new_h<0 || new_w<0 || new_h>=this.state.pixelheight || new_w>=this.state.pixelwidth){
+        //         continue
+        //     }
+        //     var new_i = new_w+new_h*this.state.pixelwidth
+        //     if(moving_ratioData[new_i]>0){
+        //         // console.log(w, h, new_w, new_h, xtranslate, ytranslate)
+        //         new_ratioData[i] = moving_ratioData[new_i]
+        //     }
+        // }
+
         if(this.state.lasso.length>0){
             var init_lasso = this.state.init_lasso    
             var lasso = []
@@ -847,6 +1053,7 @@ class Canvas extends React.Component {
                 var po = init_lasso[i]
                 lasso.push([po[0]+pos[0]-this.state.move_layer_init_pos[0], po[1]+pos[1]-this.state.move_layer_init_pos[1]])
             }
+            // this.state.ratioData[this.state.layers[this.state.current_layer].layer_id] = new_ratioData
             this.setState({lasso})
         }else{
             var nonlasso_ret = {}
@@ -855,6 +1062,7 @@ class Canvas extends React.Component {
             nonlasso_ret.width = this.state.init_nonlasso_ret.width
             nonlasso_ret.height = this.state.init_nonlasso_ret.height
             // console.log(nonlasso_ret)
+            // this.state.ratioData[this.state.layers[this.state.current_layer].layer_id] = new_ratioData
             this.setState({nonlasso_ret})
         }
         
@@ -870,6 +1078,28 @@ class Canvas extends React.Component {
 
         var pos = this.getCurrentMouseOnBoard(e)
         var lassoed_canvas = this.state.lassoed_canvas
+
+        var new_ratioData = this.state.origin_ratioData.slice()
+        var moving_ratioData = this.state.moving_ratioData
+        var xtranslate = pos[0]-this.state.move_layer_init_pos[0]
+        var ytranslate = pos[1]-this.state.move_layer_init_pos[1]
+        for(var i=0; i<new_ratioData.length; i++){
+            var w = i%this.state.pixelwidth
+            var h = parseInt(i/this.state.pixelwidth)
+
+            var new_h=h-parseInt(ytranslate)
+            var new_w=w-parseInt(xtranslate)
+            if(new_h<0 || new_w<0 || new_h>=this.state.pixelheight || new_w>=this.state.pixelwidth){
+                continue
+            }
+            var new_i = new_w+new_h*this.state.pixelwidth
+            if(moving_ratioData[new_i]>0){
+                // console.log(w, h, new_w, new_h, xtranslate, ytranslate)
+                new_ratioData[i] = moving_ratioData[new_i]
+            }
+        }
+
+        this.state.ratioData[this.state.layers[this.state.current_layer].layer_id] = new_ratioData
         
 
         var new_l_canvas = document.createElement('canvas')
@@ -910,6 +1140,24 @@ class Canvas extends React.Component {
 
         var rotateCenter = []
 
+        var origin_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+        var moving_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+        var unlassoed_data = this.state.unlassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        var lassoed_data = this.state.lassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+
+        for(var i=0; i<unlassoed_data.data.length; i+=4){
+            if(this.state.lasso.length>0){
+                if(unlassoed_data.data[i+3]>0){
+                    origin_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+                }
+            }
+            
+            if(lassoed_data.data[i+3]>0){
+                
+                moving_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+            }
+        }
+
         if(this.state.lasso.length>0){
             var xmax=Number.MIN_VALUE
             var ymax = Number.MIN_VALUE
@@ -939,7 +1187,7 @@ class Canvas extends React.Component {
         var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer].layer_id)
         var cur_image = el.toDataURL()
         console.log('rot init')
-        this.setState({action: 'rotate-layer', rotateCenter: rotateCenter, adjust_pre_canvas: adjust_pre_canvas, origin_image: cur_image})
+        this.setState({action: 'rotate-layer', rotateCenter: rotateCenter, adjust_pre_canvas: adjust_pre_canvas, origin_image: cur_image, origin_ratioData, moving_ratioData})
     }
 
     rotateLayerMove(e){
@@ -974,7 +1222,7 @@ class Canvas extends React.Component {
 
         ctx.drawImage(adjust_pre_canvas, 0, 0)
 
-        this.setState({lasso_rot_deg: -deg*180/Math.PI})
+        this.setState({lasso_rot_deg: -deg*180/Math.PI, adjust_pre_canvas})
 
         // rotate drawing, lasso img
         
@@ -999,9 +1247,32 @@ class Canvas extends React.Component {
         var layers = this.state.layers
         layers[this.state.current_layer]['image'] = cur_image
 
+
+        var adjust_pre_canvas = this.state.adjust_pre_canvas
+        var adjust_pre_ctx = adjust_pre_canvas.getContext('2d');
+        var Data_t = adjust_pre_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        var new_ratioData = this.state.origin_ratioData.slice()
+        // console.log(adjust_pre_canvas.toDataURL())
+        // console.log(Data_t.data)
+        for(var idx=0; idx<new_ratioData.length; idx++){
+            if(Data_t.data[idx*4+3]>0){
+                var w = idx%this.state.pixelwidth 
+                var h = parseInt(idx/this.state.pixelwidth)
+
+                var diff_w = w-this.state.rotateCenter[0]
+                var diff_h = h-this.state.rotateCenter[1]
+
+                var new_w = parseInt(this.state.rotateCenter[0]+ diff_w*Math.cos(this.state.lasso_rot_deg*Math.PI/180)+diff_h*Math.sin(this.state.lasso_rot_deg*Math.PI/180))
+                var new_h = parseInt(this.state.rotateCenter[1]-diff_w*Math.sin(this.state.lasso_rot_deg*Math.PI/180)+diff_h*Math.cos(this.state.lasso_rot_deg*Math.PI/180))
+
+                // console.log(new_w+new_h*this.state.pixelwidth, this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth])
+                new_ratioData[idx] = this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth]
+            }
+        }
+        this.state.ratioData[this.state.layers[this.state.current_layer].layer_id] = new_ratioData
+
         
-
-
+        
         // console.image(lassoed_canvas.toDataURL())
 
         if(this.state.lasso.length>0){
@@ -1046,12 +1317,33 @@ class Canvas extends React.Component {
         if(this.state.current_layer==-1){
             return
         }
+        e.stopPropagation()
+        console.log(direction)
         var ret
         var adjust_pre_canvas = document.createElement('canvas')
         adjust_pre_canvas.width = this.state.pixelwidth
         adjust_pre_canvas.height = this.state.pixelheight
         var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer].layer_id)
         var cur_image = el.toDataURL()
+
+        var origin_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+        var moving_ratioData = new Array(this.state.pixelwidth*this.state.pixelheight).fill(0);
+        var unlassoed_data = this.state.unlassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        var lassoed_data = this.state.lassoed_canvas.getContext('2d').getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+
+        for(var i=0; i<unlassoed_data.data.length; i+=4){
+            if(this.state.lasso.length>0){
+                if(unlassoed_data.data[i+3]>0){
+                    // console.log(this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4])
+                    origin_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+                }
+            }
+            
+            if(lassoed_data.data[i+3]>0){
+                
+                moving_ratioData[i/4] = this.state.ratioData[this.state.layers[this.state.current_layer].layer_id][i/4]
+            }
+        }
 
         if(this.state.lasso.length>0){
             var xmax=Number.MIN_VALUE
@@ -1077,11 +1369,13 @@ class Canvas extends React.Component {
         
 
             this.setState({lasso_resize_direction: direction, action: 'resize-layer', resize_layer_init_pos: this.getCurrentMouseOnBoard(e), 
-                resize_ret: ret, init_lasso: this.state.lasso.slice(0), adjust_pre_canvas: adjust_pre_canvas, origin_image: cur_image})
+            origin_ratioData, moving_ratioData,    
+            resize_ret: ret, init_lasso: this.state.lasso.slice(0), adjust_pre_canvas: adjust_pre_canvas, origin_image: cur_image})
         }else{
             ret = JSON.parse(JSON.stringify(this.state.nonlasso_ret))
             this.setState({lasso_resize_direction: direction, action: 'resize-layer', resize_layer_init_pos: this.getCurrentMouseOnBoard(e), 
-                resize_ret: ret, init_resize_ret: ret, adjust_pre_canvas: adjust_pre_canvas, origin_image: cur_image})
+            origin_ratioData, moving_ratioData,     
+            resize_ret: ret, init_resize_ret: ret, adjust_pre_canvas: adjust_pre_canvas, origin_image: cur_image})
         }
         
     }
@@ -1283,6 +1577,63 @@ class Canvas extends React.Component {
         var lassoed_ctx = lassoed_canvas.getContext('2d')
         lassoed_canvas.width = this.state.lassoed_canvas.width
         lassoed_canvas.height = this.state.lassoed_canvas.height
+
+        var adjust_pre_canvas = this.state.adjust_pre_canvas
+        var adjust_pre_ctx = adjust_pre_canvas.getContext('2d');
+        var Data_t = adjust_pre_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
+        var new_ratioData = this.state.origin_ratioData.slice()
+        console.log(adjust_pre_canvas.toDataURL())
+        console.log(Data_t.data)
+        for(var idx=0; idx<new_ratioData.length; idx++){
+            if(Data_t.data[idx*4+3]>0){
+                var w = idx%this.state.pixelwidth 
+                var h = parseInt(idx/this.state.pixelwidth)
+
+                var new_w = w
+                var new_h = h
+
+                if(this.state.lasso_resize_direction.indexOf('n')!=-1){
+                    var scale = (resize_ret['height']-pos[1]+init_pos[1])/resize_ret['height']
+                    new_h = parseInt(resize_ret['bottom']+ (h-resize_ret['bottom'])/scale)
+                }
+        
+                if(this.state.lasso_resize_direction.indexOf('s')!=-1){
+                    var scale = (resize_ret['height']+pos[1]-init_pos[1])/resize_ret['height']
+                    new_h = parseInt(resize_ret['top']- (resize_ret['top']-h)/scale)
+                }
+
+                // if(this.state.lasso_resize_direction.indexOf('w')!=-1){
+                //     var scale = (resize_ret['width']-pos[0]+init_pos[0])/resize_ret['width']
+                //     lassoed_ctx.scale(scale, 1)
+                //     lassoed_ctx.translate(this.state.resize_ret['right']*(1/scale-1), 0)
+                // }
+                // if(this.state.lasso_resize_direction.indexOf('e')!=-1){
+                //     var scale = (resize_ret['width']+pos[0]-init_pos[0])/resize_ret['width']
+                //     lassoed_ctx.scale(scale, 1)
+                //     lassoed_ctx.translate(this.state.resize_ret['left']*(1/scale-1), 0)
+                // }
+
+                if(this.state.lasso_resize_direction.indexOf('e')!=-1){
+                    var scale = (resize_ret['width']+pos[0]-init_pos[0])/resize_ret['width']
+                    new_w = parseInt(resize_ret['left']+ (w-resize_ret['left'])/scale)
+                }
+        
+                if(this.state.lasso_resize_direction.indexOf('w')!=-1){
+                    var scale = (resize_ret['width']-pos[0]+init_pos[0])/resize_ret['width']
+                    new_w = parseInt(resize_ret['right']- (resize_ret['right']-w)/scale)
+                }
+                // console.log(new_w, new_h, w, h)
+
+
+
+                if(this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth] > 0){
+                    new_ratioData[idx] = this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth]
+                }
+                // console.log(new_w+new_h*this.state.pixelwidth, this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth])
+                
+            }
+        }
+        this.state.ratioData[this.state.layers[this.state.current_layer].layer_id] = new_ratioData
 
         var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer].layer_id)
         var cur_image = el.toDataURL()
@@ -1779,6 +2130,12 @@ class Canvas extends React.Component {
         // return (<img src={location.protocol+'//'+location.host+'/img/brush.png'} style={{height: height, position:'absolute', zorder:100000, pointerEvents: 'none', top: this.state.cur_mouse_pos[1]-15, left: this.state.cur_mouse_pos[0]-15}}></img>)
     }
 
+    renderAIBrushMark(){
+        var height = this.state.AI_brush_size/this.state.pixelheight*this.state.boardheight*this.state.boardzoom
+        return (<div style={{border: 'solid 1px black', borderRadius: '50%', height:height, width: height, position:'absolute', zorder: 10, pointerEvents:'none', top: this.state.cur_mouse_pos[1]-height/2, left: this.state.cur_mouse_pos[0]-height/2}}></div>)
+        // return (<img src={location.protocol+'//'+location.host+'/img/brush.png'} style={{height: height, position:'absolute', zorder:100000, pointerEvents: 'none', top: this.state.cur_mouse_pos[1]-15, left: this.state.cur_mouse_pos[0]-15}}></img>)
+    }
+
     render(){
 
         var panel_size = ' s12 ' 
@@ -1806,6 +2163,7 @@ class Canvas extends React.Component {
             }}>
                 
                 {this.renderCanvas()}
+                <AIDrawCanvas ref={this.AIDrawCanvas} mother_state={this.state} mother_this={this}></AIDrawCanvas>
                 <svg id='sketch_pad_svg' width={this.state.boardzoom*this.state.boardwidth} height={this.state.boardzoom*this.state.boardheight} style={{position: 'absolute', top: '0', left: '0'}}>
              
                     {(this.state.control_state!='content-stamp' && this.state.control_state!='style-stamp') && this.renderLasso()}
@@ -1818,12 +2176,18 @@ class Canvas extends React.Component {
                 {/* {this.props.board_this.renderCollaboratorsOnSketchpad()} */}
                 
             </div>
+            <div style={{visibility: (this.state.control_state!='AI')?"hidden":"", pointerEvents: (this.state.control_state!='AI')?"none":""}}>
+                <PromptController mother_state={this.state} mother_this={this}></PromptController>
+            </div>
+            
             <MainController mother_state={this.state} mother_this={this}></MainController>
             <LayerController mother_state={this.state} mother_this={this}></LayerController>
+            
             {/* <SketchpadUndo mother_state={this.state} mother_this={this}></SketchpadUndo> */}
         </div>
         {this.state.control_state=='brush' && this.state.action=='brush' && this.renderBrushMark()}
         {this.state.control_state=='erase' && this.state.action=='erase' && this.renderEraserMark()}
+        {this.state.control_state=='AI' && this.state.action=='AI_brush' && this.renderAIBrushMark()}
     </div>)
     }
 }

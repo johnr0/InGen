@@ -17,11 +17,11 @@ class Dashboard extends React.Component {
             // transports: ['websocket']
         });
         console.log("component mounted")
-            this.socket.on("responseMessage", message => {
-                this.setState({'socketData': message.temperature})
-                
-                console.log("responseMessage", message)
-            })
+        this.socket.on("responseMessage", message => {
+            this.setState({'socketData': message.temperature})
+            
+            console.log("responseMessage", message)
+        })
             
     }
     handleEmit=()=>{

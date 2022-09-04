@@ -332,7 +332,7 @@ class LayerController extends Component{
 
 
     render(){
-        return (<div onWheel={this.controllerWheel.bind(this)} className='controller sketchpad_layer_controller'>
+        return (<div onWheel={this.controllerWheel.bind(this)} className='controller layer_controller'>
             <div id='sketchpad_layer_controller' className='layer_box' style={{position:'relative', overflowY:'auto', height: '250px'}} onPointerMove={this.layerMove.bind(this)} onPointerUp={this.layerDone.bind(this)}
             onDragOver={this.layerMove.bind(this)}
 

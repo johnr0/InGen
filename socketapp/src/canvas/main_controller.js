@@ -45,7 +45,7 @@ class MainController extends Component{
             }
         }
         
-        return (<div className="controller sketchpad_main_controller">
+        return (<div className="controller main_controller">
             <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='move')?'white':basecolor}}
                 onClick={this.changeControlState.bind(this, 'move')}>
                 <i className='controller_button_icon fa fa-hand-paper'></i>
@@ -62,11 +62,15 @@ class MainController extends Component{
                 onClick={this.changeControlState.bind(this, 'erase')}>
                 <i className='controller_button_icon fa fa-eraser'></i>
             </div>
-            <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='area')?'white':basecolor, marginTop:15}}
+            <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='area')?'white':basecolor}}
                 onClick={this.changeControlState.bind(this, 'area')}>
                 <span className="iconify" data-icon="mdi-lasso" data-inline="false"></span>
                 {/* < style={{width: '38px', height: '38px', border: (this.props.mother_state.control_state=='area')?'dashed 4px white':'dashed 4px #888888'}}></div> */}
    
+            </div>
+            <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='AI')?'white':basecolor}}
+                onClick={this.changeControlState.bind(this, 'AI')}>
+                <span className={'select_disabled'}>AI</span>
             </div>
             {/* <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='content-stamp')?'white':basecolor}}
                 onClick={this.changeControlState.bind(this, 'content-stamp')}>
