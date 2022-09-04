@@ -33,6 +33,7 @@ class AIDrawCanvas extends React.Component{
             if(this.props.mother_state.control_state == 'AI' && (this.props.mother_state.single_stroke_ratio>0 || (this.props.mother_state.single_stroke_ratio==0 && this.props.mother_state.action=='AI_brush'))){
                 if(_this.props.mother_state.single_stroke_ratio>0 && _this.props.mother_state.gen_tick<parseInt(_this.props.mother_state.gen_steps*_this.props.mother_state.single_stroke_ratio/100)){
                     // var canvas = document.getElementById('AI_intermediate_canvas')
+                    this.undo_store()
                     var canvas = document.getElementById('sketchpad_canvas_'+_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id)
                     var ctx = canvas.getContext('2d')
                     
@@ -40,7 +41,6 @@ class AIDrawCanvas extends React.Component{
                     var img = new Image;
                     img.onload = function(){
                         ctx.drawImage(img, _this.props.mother_state.cutxmin, _this.props.mother_state.cutymin)
-                        _this.props.mother_this.setState({gen_tick: _this.props.mother_state.gen_tick+1})
                         _this.ratioUpdate(_this.processGen.bind(_this))
                         var layers = _this.props.mother_state.layers
                         layers[_this.props.mother_state.current_layer].image = canvas.toDataURL()
@@ -52,6 +52,7 @@ class AIDrawCanvas extends React.Component{
                     
                 }else if(_this.props.mother_state.single_stroke_ratio==0 && _this.props.mother_state.action=='AI_brush'){
                     // var canvas = document.getElementById('AI_intermediate_canvas')
+                    this.undo_store()
                     var canvas = document.getElementById('sketchpad_canvas_'+_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id)
                     
                     var ctx = canvas.getContext('2d')
@@ -85,6 +86,14 @@ class AIDrawCanvas extends React.Component{
     }
 
     ratioUpdate(callback){
+
+
+        if(this.props.mother_state.single_stroke_ratio>0){
+            this.props.mother_this.setState({gen_tick: this.props.mother_state.gen_tick+1})
+        }
+        
+
+
         var el_area = document.getElementById('AI_area_canvas')
         var ctx_area = el_area.getContext('2d');
 
@@ -130,6 +139,56 @@ class AIDrawCanvas extends React.Component{
             callback()
         })
         
+    }
+
+    undo_store(){
+        var cur_layer = JSON.parse(JSON.stringify(this.props.mother_state.layers[this.props.mother_state.current_layer]))
+        var overcoat_img = undefined
+        if(this.props.mother_state.gen_tick==0){
+            overcoat_img = this.props.mother_state.overcoat_img
+        }
+        
+        var text_prompts = []
+        var text_prompt_weights = []
+        for(var i in this.props.mother_state.selected_prompt.prompts){
+            var prompt_idx = this.props.mother_state.selected_prompt.prompts[i]
+            var prompt = this.props.mother_state.prompts[prompt_idx]
+            if(prompt.istext){
+                text_prompts.push(prompt.prompt)
+                text_prompt_weights.push(this.props.mother_state.selected_prompt.weights[i])
+            }
+        }
+        var el_area = document.getElementById('AI_area_canvas')
+
+
+        var undo_obj = {
+            type:'gen',
+
+            // stroke_id: this.props.mother_state.stroke_id, 
+
+            gen_tick: this.props.mother_state.gen_tick,
+
+            current_layer: this.props.mother_state.current_layer,
+            layer:cur_layer, 
+            // area_img: el_area.toDataURL(), 
+            ratioData: JSON.parse(JSON.stringify(this.props.mother_state.ratioData)),
+            overcoat_img: overcoat_img,
+            guidance_scale:   this.props.mother_state.guidance_scale, 
+            overcoat_ratio:  this.props.mother_state.overcoat_ratio,
+            AI_brush_size: this.props.mother_state.AI_brush_size,
+            single_stroke_ratio: this.props.mother_state.single_stroke_ratio,
+            gen_steps: this.props.mother_state.gen_steps,
+            selected_prompt: JSON.parse(JSON.stringify(this.props.mother_state.selected_prompt)), 
+            directional_prompts: JSON.parse(JSON.stringify(this.props.mother_state.directional_prompts)),
+            prompts: JSON.parse(JSON.stringify(this.props.mother_state.prompts)), 
+            prompt_groups: JSON.parse(JSON.stringify(this.props.mother_state.prompt_groups)),
+        }
+        this.props.mother_state.undo_states.push(undo_obj)
+        if(this.props.mother_state.undo_states.length>2000){
+            this.props.mother_state.undo_states.shift();
+        }
+        this.setState({redo_states: []})
+
     }
 
     AIbrushInit_auto(e){
@@ -530,7 +589,7 @@ class AIDrawCanvas extends React.Component{
             }
 
             if(ratioData[parseInt(i/4)]>=100 && areaData.data[i+3]==255){
-                ratioData[parseInt(i/4)] = 100 - this.props.mother_state.overcoat_ratio/100
+                ratioData[parseInt(i/4)] = 100 - this.props.mother_state.overcoat_ratio
                 overcoatData.data[i+3]=255
                 overcoatData.data[i+2]=0
                 overcoatData.data[i+1]=0
@@ -684,18 +743,18 @@ class AIDrawCanvas extends React.Component{
     }
 
     endGen(){
-        var el_intermediate = document.getElementById('AI_intermediate_canvas')
-        var ctx_intermediate = el_intermediate.getContext('2d');
-        var el_layer = document.getElementById('sketchpad_canvas_'+this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id)
-        var ctx_layer = el_layer.getContext('2d');
+        // var el_intermediate = document.getElementById('AI_intermediate_canvas')
+        // var ctx_intermediate = el_intermediate.getContext('2d');
+        // var el_layer = document.getElementById('sketchpad_canvas_'+this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id)
+        // var ctx_layer = el_layer.getContext('2d');
 
 
-        ctx_layer.drawImage(el_intermediate,0, 0)
+        // ctx_layer.drawImage(el_intermediate,0, 0)
 
-        var layers = this.props.mother_state.layers
-        layers[this.props.mother_state.current_layer].image = el_layer.toDataURL()
+        // var layers = this.props.mother_state.layers
+        // layers[this.props.mother_state.current_layer].image = el_layer.toDataURL()
 
-        ctx_intermediate.clearRect(0,0, this.props.mother_state.pixelwidth, this.props.mother_state.pixelheight)
+        // ctx_intermediate.clearRect(0,0, this.props.mother_state.pixelwidth, this.props.mother_state.pixelheight)
 
         this.props.mother_this.setState({stroke_id: undefined, gen_tick: -1, overcoat_blob: undefined, area_blob: undefined, cutxmin: undefined, cutymin: undefined, cutxmax: undefined, cutymax: undefined})
     }

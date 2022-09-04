@@ -18,6 +18,9 @@ class LayerController extends Component{
             current_layer: this.props.mother_state.current_layer
         }
         this.props.mother_state.undo_states.push(undo_obj)
+        if(this.props.mother_state.undo_states.length>2000){
+            this.props.mother_state.undo_states.shift();
+        }
         this.props.mother_this.setState({redo_states:[]})
         // if(type=='move_layer'){
         //     undo_obj={

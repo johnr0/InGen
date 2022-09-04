@@ -5,6 +5,7 @@ import MainController from './main_controller'
 // import SketchpadUndo from './sketchpad_undo'
 import PromptController from './prompt_controller'
 import AIDrawCanvas from './AI_draw_canvas'
+import { rightArithShift } from 'mathjs'
 
 class Canvas extends React.Component {
     state = {
@@ -496,7 +497,7 @@ class Canvas extends React.Component {
             lassoed_canvas: this.state.lassoed_canvas,
         }
         this.state.undo_states.push(undo_obj)
-        if(this.state.undo_states.length>50){
+        if(this.state.undo_states.length>2000){
             this.state.undo_states.shift();
         }
         this.setState({redo_states: []})
@@ -557,6 +558,61 @@ class Canvas extends React.Component {
                 }
                 this.state.layers = undo_obj.layers
                 this.state.current_layer = undo_obj.current_layer
+
+            }else if(undo_obj.type=='gen'){
+                redo_obj = {
+                    type: 'gen',
+                    
+                    // stroke_id: this.state.stroke_id, 
+
+                    gen_tick: this.state.gen_tick,
+
+                    current_layer: this.state.current_layer,
+                    layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])), 
+                    // area_img: el_area.toDataURL(), 
+                    ratioData: JSON.parse(JSON.stringify(this.state.ratioData)),
+                    overcoat_img: this.state.overcoat_img,
+                    guidance_scale:   this.state.guidance_scale, 
+                    overcoat_ratio:  this.state.overcoat_ratio,
+                    AI_brush_size: this.state.AI_brush_size,
+                    single_stroke_ratio: this.state.single_stroke_ratio,
+                    gen_steps: this.state.gen_steps,
+                    selected_prompt: JSON.parse(JSON.stringify(this.state.selected_prompt)), 
+                    directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
+                    prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
+                    prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
+                }
+
+                this.state.stroke_id = undo_obj.stroke_id
+                this.state.gen_tick = undo_obj.gen_tick
+
+                this.state.current_layer = undo_obj.current_layer
+                this.state.layers[undo_obj.current_layer] = undo_obj.layer
+                var el = document.getElementById('sketchpad_canvas_'+undo_obj.layer.layer_id)
+                var ctx = el.getContext('2d');
+                
+                var img = new Image();
+                img.src = undo_obj.layer.image
+                var _this = this
+                img.onload = function(){
+                    ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
+                    ctx.drawImage(this, 0,0)
+                }
+
+                this.state.stroke_id = undefined
+                this.state.ratioData = undo_obj.ratioData
+                this.state.overcoat_img = undo_obj.overcoat_img
+                this.state.guidance_scale = undo_obj.guidance_scale
+                this.state.overcoat_ratio = undo_obj.overcoat_ratio
+                this.state.AI_brush_size = undo_obj.AI_brush_size
+                this.state.single_stroke_ratio = undo_obj.single_stroke_ratio
+                this.state.gen_steps = undo_obj.gen_steps
+                this.state.selected_prompt = undo_obj.selected_prompt
+                this.state.directional_prompts = undo_obj.directional_prompts
+                this.state.prompts = undo_obj.prompts
+                this.state.prompt_groups = undo_obj.prompt_groups
+
+
 
             }
             this.state.redo_states.push(redo_obj)
@@ -621,6 +677,58 @@ class Canvas extends React.Component {
                 this.state.layers = redo_obj.layers
                 this.state.current_layer = redo_obj.current_layer
 
+            }else if(redo_obj.type == 'gen'){
+                undo_obj = {
+                    type: 'gen',
+                    
+                    // stroke_id: this.state.stroke_id, 
+
+                    gen_tick: this.state.gen_tick,
+
+                    current_layer: this.state.current_layer,
+                    layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])), 
+                    // area_img: el_area.toDataURL(), 
+                    ratioData: JSON.parse(JSON.stringify(this.state.ratioData)),
+                    overcoat_img: this.state.overcoat_img,
+                    guidance_scale:   this.state.guidance_scale, 
+                    overcoat_ratio:  this.state.overcoat_ratio,
+                    AI_brush_size: this.state.AI_brush_size,
+                    single_stroke_ratio: this.state.single_stroke_ratio,
+                    gen_steps: this.state.gen_steps,
+                    selected_prompt: JSON.parse(JSON.stringify(this.state.selected_prompt)), 
+                    directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
+                    prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
+                    prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
+                }
+
+                this.state.stroke_id = redo_obj.stroke_id
+                this.state.gen_tick = redo_obj.gen_tick
+
+                this.state.current_layer = redo_obj.current_layer
+                this.state.layers[redo_obj.current_layer] = redo_obj.layer
+                var el = document.getElementById('sketchpad_canvas_'+redo_obj.layer.layer_id)
+                var ctx = el.getContext('2d');
+                
+                var img = new Image();
+                img.src = redo_obj.layer.image
+                var _this = this
+                img.onload = function(){
+                    ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
+                    ctx.drawImage(this, 0,0)
+                }
+                this.state.stroke_id = undefined
+                this.state.ratioData = redo_obj.ratioData
+                this.state.overcoat_img = redo_obj.overcoat_img
+                this.state.guidance_scale = redo_obj.guidance_scale
+                this.state.overcoat_ratio = redo_obj.overcoat_ratio
+                this.state.AI_brush_size = redo_obj.AI_brush_size
+                this.state.single_stroke_ratio = redo_obj.single_stroke_ratio
+                this.state.gen_steps = redo_obj.gen_steps
+                this.state.selected_prompt = redo_obj.selected_prompt
+                this.state.directional_prompts = redo_obj.directional_prompts
+                this.state.prompts = redo_obj.prompts
+                this.state.prompt_groups = redo_obj.prompt_groups
+                
             }
             this.state.undo_states.push(undo_obj)
             this.setState({})
