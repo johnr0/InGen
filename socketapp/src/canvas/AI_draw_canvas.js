@@ -17,7 +17,7 @@ class AIDrawCanvas extends React.Component{
         this.props.mother_this.setState({})
 
         // var sensorEndpoint = "http://localhost:5001"
-        this.socket = io('http://localhost:5001/', {
+        this.socket = io('http://localhost:5001', {
             reconnection: true,
             transports: ['websocket'],
         })
@@ -467,7 +467,7 @@ class AIDrawCanvas extends React.Component{
                 'overcoat_ratio':  _this.props.mother_state.overcoat_ratio/100,
                 'text_prompts': text_prompts,
                 'text_prompt_weights': text_prompt_weights,
-                'directional_propmts': directional_prompts
+                'directional_prompts': directional_prompts
             }
 
             // var stroke_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
@@ -723,6 +723,11 @@ class AIDrawCanvas extends React.Component{
             }
             directional_prompts.push(nps)
         }
+
+        console.log(layer_img,'layer_img')
+        console.log(this.props.mother_state.area_img, 'area_img')
+        console.log(this.props.mother_state.overcoat_img, 'overcoat_img')
+
         var sent_data = {
             'stroke_id': this.props.mother_state.stroke_id,
             'layer_img':layer_img, 
@@ -733,7 +738,7 @@ class AIDrawCanvas extends React.Component{
             'overcoat_ratio':  this.props.mother_state.overcoat_ratio/100,
             'text_prompts': text_prompts,
             'text_prompt_weights': text_prompt_weights,
-            'directional_propmts': directional_prompts
+            'directional_prompts': directional_prompts
         }
         this.socket.emit("gen_step", sent_data)
             
