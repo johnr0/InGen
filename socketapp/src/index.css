@@ -434,3 +434,17 @@ input[type='color']:disabled {
   border: none !important;
   margin: 0px !important;
 }
+
+.generation_controller{
+  width: 50%;
+  max-width: 500px;
+  z-index: 1;
+  position: absolute;
+  border-bottom-right-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+  bottom: 0;
+  right: 0;
+  height: 70px;
+  width: 500px;
+}

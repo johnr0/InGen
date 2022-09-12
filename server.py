@@ -17,7 +17,12 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 
 socketio = SocketIO(app, cors_allowed_origins='*')
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.route('/hello')
+def hello():
+    return "Hello World!"
+
 
 # Handle the webapp connecting to the websocket
 @socketio.on('connect')

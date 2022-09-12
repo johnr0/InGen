@@ -6,6 +6,8 @@ import MainController from './main_controller'
 import PromptController from './prompt_controller'
 import AIDrawCanvas from './AI_draw_canvas'
 import { rightArithShift } from 'mathjs'
+import GenerationController from './generation_controller'
+
 
 class Canvas extends React.Component {
     state = {
@@ -24,8 +26,8 @@ class Canvas extends React.Component {
         boardheight: 0,
         boardwidth: 0,
 
-        pixelwidth: 960,
-        pixelheight: 540,
+        pixelwidth: 512,
+        pixelheight: 512,
 
         // variables about moving board
         move_board_init: undefined,
@@ -154,9 +156,9 @@ class Canvas extends React.Component {
         AI_brush_size: 100,
         selected_prompt: undefined,
         guidance_scale: 7,
-        single_stroke_ratio: 20,
-        gen_steps: 100,
-        overcoat_ratio: 10, 
+        single_stroke_ratio: 100,
+        gen_steps: 50,
+        overcoat_ratio: 50, 
         multi_strokes:false,
         gen_tick: -1,
         ratioData: {},
@@ -235,18 +237,21 @@ class Canvas extends React.Component {
         var boardwidth = document.getElementById(this.state.boardname).offsetWidth
         var boardheight = document.getElementById(this.state.boardname).offsetHeight
         var boardlength = (boardwidth>boardheight)?boardheight:boardwidth
+        var outer_width  = boardwidth
+        var outer_height = boardheight
         boardwidth = (boardwidth>boardheight)?boardwidth:boardheight/this.state.pixelheight*this.state.pixelwidth
         boardheight = (boardwidth<boardheight)?boardheight:boardwidth/this.state.pixelwidth*this.state.pixelheight
+        
         console.log(boardlength)
-        this.setState({boardlength:boardlength, boardheight:boardheight, boardwidth: boardwidth})
+        this.setState({boardlength:boardlength, boardheight:boardheight, boardwidth: boardwidth, outer_width:outer_width, outer_height: outer_height})
     }
 
     zoom_board_wheel(e){
         // console.log(e.deltaY)
         if(this.state.action=='idle'){
             var boardzoom_new = this.state.boardzoom-e.deltaY/100
-            if(boardzoom_new<0.5){
-                this.setState({boardzoom: 0.5})
+            if(boardzoom_new<0.1){
+                this.setState({boardzoom: 0.1})
             }else if(boardzoom_new>10){
                 this.setState({boardzoom: 10})
             }else{
@@ -260,19 +265,19 @@ class Canvas extends React.Component {
     moveMouse(e){
             // console.log(this.state.move_board_init, this.state.move_board_mouse_init)
             // console.log(this.state.move_board_init[0]-(e.pageX-this.state.move_board_mouse_init[0])/100/this.state.boardzoom)
-            var boardX = this.state.move_board_init[0]-(e.pageX-this.state.move_board_mouse_init[0])/this.state.boardwidth/this.state.boardzoom
-            var boardY = this.state.move_board_init[1]-(e.pageY-this.state.move_board_mouse_init[1])/this.state.boardheight/this.state.boardzoom
-            if (boardX<0.1){
-                boardX = 0.1
-            }else if(boardX>0.9){
-                boardX = 0.9
-            }
-
-            if(boardY<0.1){
-                boardY = 0.1
-            }else if(boardY>0.9){
-                boardY = 0.9
-            }
+            var boardX = this.state.move_board_init[0]-(e.pageX-this.state.move_board_mouse_init[0])/this.state.outer_width/this.state.boardzoom
+            var boardY = this.state.move_board_init[1]-(e.pageY-this.state.move_board_mouse_init[1])/this.state.outer_width/this.state.boardzoom
+            // if (boardX<0.1){
+            //     boardX = 0.1
+            // }else if(boardX>0.9){
+            //     boardX = 0.9
+            // }
+            // console.log(boardX, boardY)
+            // if(boardY<0.1){
+            //     boardY = 0.1
+            // }else if(boardY>0.9){
+            //     boardY = 0.9
+            // }
             this.setState({boardcenter: [boardX, boardY]})
         
     }
@@ -289,8 +294,7 @@ class Canvas extends React.Component {
     }
 
     getPositionOnBoard(xpix, ypix){
-        var horizontal_offset = 0
-        var xpos = this.state.pixelwidth*(this.state.boardcenter[0]-(this.state.boardwidth/2+horizontal_offset)/this.state.boardwidth/this.state.boardzoom+xpix/this.state.boardzoom/this.state.boardwidth)
+        var xpos = this.state.pixelwidth*(this.state.boardcenter[0]-(this.state.boardwidth/2)/this.state.boardwidth/this.state.boardzoom+xpix/this.state.boardzoom/this.state.boardwidth)
         var ypos = this.state.pixelheight*(this.state.boardcenter[1]-this.state.boardheight/2/this.state.boardheight/this.state.boardzoom+ypix/this.state.boardzoom/this.state.boardheight)
         return [xpos, ypos]
     }
@@ -560,10 +564,14 @@ class Canvas extends React.Component {
                 this.state.current_layer = undo_obj.current_layer
 
             }else if(undo_obj.type=='gen'){
+                var latents = this.state.latents
+                if(latents!=undefined){
+                    latents = JSON.parse(JSON.stringify(latents))
+                }
                 redo_obj = {
                     type: 'gen',
                     
-                    // stroke_id: this.state.stroke_id, 
+                    stroke_id: this.state.stroke_id, 
 
                     gen_tick: this.state.gen_tick,
 
@@ -581,6 +589,11 @@ class Canvas extends React.Component {
                     directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
                     prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
                     prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
+                    latents: latents,
+                    cutxmin: this.state.cutxmin, 
+                    cutxmax: this.state.cutxmax, 
+                    cutymin: this.state.cutymin, 
+                    cutymax: this.state.cutymax, 
                 }
 
                 this.state.stroke_id = undo_obj.stroke_id
@@ -599,7 +612,7 @@ class Canvas extends React.Component {
                     ctx.drawImage(this, 0,0)
                 }
 
-                this.state.stroke_id = undefined
+                // this.state.stroke_id = undefined
                 this.state.ratioData = undo_obj.ratioData
                 this.state.overcoat_img = undo_obj.overcoat_img
                 this.state.guidance_scale = undo_obj.guidance_scale
@@ -611,7 +624,11 @@ class Canvas extends React.Component {
                 this.state.directional_prompts = undo_obj.directional_prompts
                 this.state.prompts = undo_obj.prompts
                 this.state.prompt_groups = undo_obj.prompt_groups
-
+                this.state.latents = undo_obj.latents
+                this.state.cutxmin = undo_obj.cutxmin
+                this.state.cutymin = undo_obj.cutymin
+                this.state.cutxmax = undo_obj.cutxmax
+                this.state.cutymax = undo_obj.cutymax
 
 
             }
@@ -678,10 +695,14 @@ class Canvas extends React.Component {
                 this.state.current_layer = redo_obj.current_layer
 
             }else if(redo_obj.type == 'gen'){
+                var latents = this.state.latents
+                if(latents!=undefined){
+                    latents = JSON.parse(JSON.stringify(latents))
+                }
                 undo_obj = {
                     type: 'gen',
                     
-                    // stroke_id: this.state.stroke_id, 
+                    stroke_id: this.state.stroke_id, 
 
                     gen_tick: this.state.gen_tick,
 
@@ -699,6 +720,11 @@ class Canvas extends React.Component {
                     directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
                     prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
                     prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
+                    latents: latents,
+                    cutxmin: this.state.cutxmin, 
+                    cutxmax: this.state.cutxmax, 
+                    cutymin: this.state.cutymin, 
+                    cutymax: this.state.cutymax, 
                 }
 
                 this.state.stroke_id = redo_obj.stroke_id
@@ -716,7 +742,7 @@ class Canvas extends React.Component {
                     ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
                     ctx.drawImage(this, 0,0)
                 }
-                this.state.stroke_id = undefined
+                // this.state.stroke_id = undefined
                 this.state.ratioData = redo_obj.ratioData
                 this.state.overcoat_img = redo_obj.overcoat_img
                 this.state.guidance_scale = redo_obj.guidance_scale
@@ -728,6 +754,10 @@ class Canvas extends React.Component {
                 this.state.directional_prompts = redo_obj.directional_prompts
                 this.state.prompts = redo_obj.prompts
                 this.state.prompt_groups = redo_obj.prompt_groups
+                this.state.cutxmin = redo_obj.cutxmin
+                this.state.cutymin = redo_obj.cutymin
+                this.state.cutxmax = redo_obj.cutxmax
+                this.state.cutymax = redo_obj.cutymax
                 
             }
             this.state.undo_states.push(undo_obj)
@@ -2286,6 +2316,9 @@ class Canvas extends React.Component {
             </div>
             <div style={{visibility: (this.state.control_state!='AI')?"hidden":"", pointerEvents: (this.state.control_state!='AI')?"none":""}}>
                 <PromptController mother_state={this.state} mother_this={this}></PromptController>
+            </div>
+            <div style={{visibility: (this.state.control_state!='AI')?"hidden":"", pointerEvents: (this.state.control_state!='AI')?"none":""}}>
+                <GenerationController mother_state={this.state} mother_this={this}></GenerationController>
             </div>
             
             <MainController mother_state={this.state} mother_this={this}></MainController>

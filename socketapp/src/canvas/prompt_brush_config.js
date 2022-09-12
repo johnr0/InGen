@@ -61,29 +61,33 @@ class PromptBrushConfig extends React.Component{
                         <div style={{display:'flex', justifyContent:'space-between'}}>
                             <div>
                                 <div>Guidance Scale:</div> 
-                                <div>Single stroke:</div> 
+                                {/* <div>Single stroke:</div>  */}
                                 <div>Steps:</div> 
                                 <div>Overcoat:</div> 
+                                {/* <div>Cur Progress:</div>  */}
                             </div>
                             <div style={{flexGrow:1, marginRight:3, marginLeft: 3}}>
                                 <div style={{display:'flex'}}>
                                     <input className={'intext_number_input'} type='range' max={50} min={0} value={this.props.mother_state.guidance_scale} onChange={this.changeValue.bind(this, 'guidance_scale')}></input>
                                     
                                 </div>
-                                <div style={{display:'flex'}}>
+                                {/* <div style={{display:'flex'}}>
                                     <input className={'intext_number_input'} type='range' max={100} min={0} value={this.props.mother_state.single_stroke_ratio} onChange={this.changeValue.bind(this, 'single_stroke_ratio')}></input>
                                     
-                                </div>
+                                </div> */}
                                 <div style={{display:'flex'}}>
                                     <input className={'intext_number_input'} type='range' max={500} min={1} value={this.props.mother_state.gen_steps} onChange={this.changeValue.bind(this, 'gen_steps')}></input>
                                 </div>
                                 <div style={{display:'flex'}}>
                                     <input className={'intext_number_input'} type='range' max={100} min={0} value={this.props.mother_state.overcoat_ratio} onChange={this.changeValue.bind(this, 'overcoat_ratio')}></input>
                                 </div>
+                                {/* <div style={{display:'flex'}}>
+                                    <input className={'intext_number_input'} type='range' max={this.props.mother_state.gen_steps} min={0} value={this.props.mother_state.gen_tick} onChange={this.changeValue.bind(this, 'gen_tick')}></input>
+                                </div> */}
                             </div>
                             <div style={{width:35}}>
                                 <div>{this.props.mother_state.guidance_scale}</div>
-                                <div>{this.props.mother_state.single_stroke_ratio}%</div>
+                                {/* <div>{this.props.mother_state.single_stroke_ratio}%</div> */}
                                 <div>{this.props.mother_state.gen_steps}</div>
                                 <div>{this.props.mother_state.overcoat_ratio}%</div>
                             </div>
