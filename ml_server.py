@@ -45,6 +45,7 @@ from flask_cors import CORS
 from random import gauss, random
 # from threading import Thread, Event
 from time import sleep
+import time
 
 import numpy as np
 from PIL import Image
@@ -159,6 +160,7 @@ def handle_message(message):
     # print('someone sent to the websocket', message)
     # print(message.keys())
     # print('gen??')
+    now = time.time()
 
     guidance_scale = message['guidance_scale']
     text_prompts = message['text_prompts']
@@ -176,7 +178,6 @@ def handle_message(message):
     seed = message['seed']
     generator = torch.Generator(device='cuda')
     generator.manual_seed(seed) 
-    overcoat_img = None
 
     # set mask from area_img
     area_mask = preprocess_mask(area_img)
@@ -212,24 +213,7 @@ def handle_message(message):
 
 
     
-    if message['gen_tick']==0:
-      # if 'overcoat_img' in message:
-      #     overcoat_img = Image.open(BytesIO(base64.b64decode(message['overcoat_img'].split(",",1)[1])))
-    
-    
-    
-
-      # TODO if overcoat image exists, add overcoat noise to the layer image
-        # TODO also add initial noise in the below part
-      # if overcoat_img!=None:
-      #     print('overcoating...')
-      #     overcoat_mask = preprocess_mask(overcoat_img)
-    
-
-      
-      
-      
-      
+    if message['gen_tick']==0:   
       
       # latents = noise # start from the purse noise
 
@@ -238,15 +222,15 @@ def handle_message(message):
       
       # scheduler.add_noise(latents, noise, t-1)
     else:
-      print('stored latent is used')
+      # print('stored latent is used')
       latents = torch.Tensor(message['latents'])
       latents = latents.to(torch_device)
 
 
-    print(latents.size())
+    # print(latents.size())
 
 
-    
+    print(time.time()-now)
 
     # set directional prompt embeddings
     directional_vector = None
@@ -266,41 +250,46 @@ def handle_message(message):
 
 
     # handle text input
-    text_input = tokenizer(text_prompts, padding="max_length", max_length=tokenizer.model_max_length, truncation=True, return_tensors="pt")
+    # text_input = tokenizer(text_prompts, padding="max_length", max_length=tokenizer.model_max_length, truncation=True, return_tensors="pt")
     
-    with torch.no_grad():
-      text_embeddings = text_encoder(text_input.input_ids.to(torch_device))[0]
-    prompt_weights = None
-    if prompt_weights == None:
-      text_embeddings = torch.mean(text_embeddings, dim=0)
-    else:
-      prompt_weights = torch.Tensor(prompt_weights).to(torch_device)
-      text_embeddings = torch.sum(text_embeddings * prompt_weights[:, None, None], dim=0)/torch.sum(prompt_weights)
-    text_embeddings = text_embeddings.reshape(1, text_embeddings.shape[0], text_embeddings.shape[1])
+    # with torch.no_grad():
+    #   text_embeddings = text_encoder(text_input.input_ids.to(torch_device))[0]
+    # prompt_weights = None
+    # if prompt_weights == None:
+    #   text_embeddings = torch.mean(text_embeddings, dim=0)
+    # else:
+    #   prompt_weights = torch.Tensor(prompt_weights).to(torch_device)
+    #   text_embeddings = torch.sum(text_embeddings * prompt_weights[:, None, None], dim=0)/torch.sum(prompt_weights)
+    # text_embeddings = text_embeddings.reshape(1, text_embeddings.shape[0], text_embeddings.shape[1])
 
-    max_length = text_input.input_ids.shape[-1]
-    uncond_input = tokenizer(
-        [""], padding="max_length", max_length=max_length, return_tensors="pt"
-    )
-    with torch.no_grad():
-      uncond_embeddings = text_encoder(uncond_input.input_ids.to(torch_device))[0]  
+    # max_length = text_input.input_ids.shape[-1]
+    # uncond_input = tokenizer(
+    #     [""], padding="max_length", max_length=max_length, return_tensors="pt"
+    # )
+    # with torch.no_grad():
+    #   uncond_embeddings = text_encoder(uncond_input.input_ids.to(torch_device))[0]  
 
-    text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
+    # text_embeddings = torch.cat([uncond_embeddings, text_embeddings])
     
-    # text_prompt_embedding = None
-    # tpw = 0
-    # for tp_idx, text_prompt in enumerate(text_prompts):
-    #   cur_embedding = text_prompt_embed(text_prompt)
-    #   if text_prompt_embedding==None:
-    #     text_prompt_embedding = cur_embedding*text_prompt_weights[tp_idx]
-    #   else:
-    #     text_prompt_embedding = text_prompt_embedding + cur_embedding*text_prompt_weights[tp_idx]
-    #   tpw = tpw + text_prompt_weights[tp_idx]
-    # text_prompt_embedding = text_prompt_embedding/tpw
+    text_prompt_embedding = None
+    tpw = 0
+    for tp_idx, text_prompt in enumerate(text_prompts):
+      # print('inloop1', time.time()-now)
+      cur_embedding = text_prompt_embed(text_prompt)
+      # print('inloop2', time.time()-now)
+      if text_prompt_embedding==None:
+        text_prompt_embedding = cur_embedding*text_prompt_weights[tp_idx]
+      else:
+        text_prompt_embedding = text_prompt_embedding + cur_embedding*text_prompt_weights[tp_idx]
+      tpw = tpw + text_prompt_weights[tp_idx]
+      # print('inloop3', time.time()-now)
+    text_prompt_embedding = text_prompt_embedding/tpw
 
-    # uncond_embeddings = text_prompt_embed('')
-    # text_embeddings = torch.cat([uncond_embeddings, text_prompt_embedding])
+    uncond_embeddings = text_prompt_embed('')
+    text_embeddings = torch.cat([uncond_embeddings, text_prompt_embedding])
     # print(uncond_embeddings.size(), text_prompt_embedding.size())
+
+    print(time.time()-now)
 
     
     scheduler.set_timesteps(num_inference_steps)
@@ -337,7 +326,7 @@ def handle_message(message):
 
 
 
-
+    print(time.time()-now)
     # mask 
     # latents = area_mask * init_latents + (1-area_mask) * latents
     latents_rt = latents.cpu().detach().numpy().tolist()
@@ -345,29 +334,41 @@ def handle_message(message):
     latents = 1 / 0.18215 * latents
     
     output_img = vae.decode(latents)
-
+    print('within', time.time()-now)
     output_img = (output_img / 2 + 0.5).clamp(0, 1)
-    output_img = output_img.cpu().permute(0, 2, 3, 1).numpy()
+    print('within2-1', time.time()-now)
+    output_img = output_img.permute(0, 2, 3, 1)
+    print('within2-1-1', time.time()-now)
+    torch.cuda.synchronize()
+    now2 = time.time()
+    output_img = output_img.cpu()
+    print('within2-1-2', time.time()-now, time.time()-now2)
+    output_img = output_img.numpy()
+    # output_img = output_img.cpu().permute(0, 2, 3, 1).numpy()
+    print('within2-2', time.time()-now)
     output_img = numpy_to_pil(output_img)[0]
+    print('within2-3', time.time()-now)
     output_img = output_img.resize((layer_img_o.size[0], layer_img_o.size[1]), resample=Image.LANCZOS)
-    
+    print('within2', time.time()-now)
     output_array = np.asarray(output_img)
     output_array = np.copy(output_array)
-    
+    # print('within3', time.time()-now)
 
     area_array = np.asarray(area_img_o)
     area_array = np.where(area_array==255, 255, 0)
     # print(area_array.shape, gaussian.shape)
     output_array[:,:,3] = area_array[:,:,3]
-
+    # print('within4', time.time()-now)
     output_img = Image.fromarray(output_array)
-
+    # print('within5', time.time()-now)
     
     # print('here?')
     buffered = BytesIO()
     output_img.save(buffered, format="PNG")
     output_img_send = base64.b64encode(buffered.getvalue()).decode("utf-8")
 
+    print(time.time()-now, time.time())
+    print('---------------------')
     emit('gen_done', {'data':message['area_img'].split(",",1)[0]+','+output_img_send, 'stroke_id': message['stroke_id'], 'latents':latents_rt})
 
 
@@ -388,4 +389,3 @@ def default_error_handler(e):
 socketio.run(app, host='0.0.0.0', debug=False, port=5001)
   # http_server = WSGIServer(('',5001), app, handler_class=WebSocketHandler)
   # http_server.serve_forever()
-

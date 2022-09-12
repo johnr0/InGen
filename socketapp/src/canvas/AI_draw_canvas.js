@@ -12,12 +12,12 @@ class AIDrawCanvas extends React.Component{
     componentDidMount(){
         for(var i in this.props.mother_state.layers){
             var layer = this.props.mother_state.layers[i]
-            this.props.mother_state.ratioData[layer.layer_id] = new Array(this.props.mother_state.pixelwidth*this.props.mother_state.pixelheight).fill(0);
+            // this.props.mother_state.ratioData[layer.layer_id] = new Array(this.props.mother_state.pixelwidth*this.props.mother_state.pixelheight).fill(0);
         }
         this.props.mother_this.setState({})
 
         // var sensorEndpoint = "http://localhost:5001"
-        this.socket = io('http://6cef-35-236-141-154.ngrok.io/', {
+        this.socket = io('http://99cc-35-194-156-176.ngrok.io/', {
             reconnection: true,
             maxHttpBufferSize: 1e8,
             // transports: ['websocket'],
@@ -95,79 +95,80 @@ class AIDrawCanvas extends React.Component{
         if(this.props.mother_state.single_stroke_ratio>0){
             this.props.mother_this.setState({gen_tick: this.props.mother_state.gen_tick+1})
         }
+        callback()
         
 
 
-        var el_area = document.getElementById('AI_area_canvas')
-        var ctx_area = el_area.getContext('2d');
+        // var el_area = document.getElementById('AI_area_canvas')
+        // var ctx_area = el_area.getContext('2d');
 
-        var ratioData = this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id]//ctx_ratio.getImageData(0,0,el_ratio.width, el_ratio.height);
-        var areaData_real = ctx_area.getImageData(0,0,el_area.width, el_area.height);
-        var areaData_origin= JSON.parse(JSON.stringify(areaData_real.data))
-        var areaData = this.props.mother_state.areaData
+        // var ratioData = this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id]//ctx_ratio.getImageData(0,0,el_ratio.width, el_ratio.height);
+        // var areaData_real = ctx_area.getImageData(0,0,el_area.width, el_area.height);
+        // var areaData_origin= JSON.parse(JSON.stringify(areaData_real.data))
+        // var areaData = this.props.mother_state.areaData
         
-        var new_cutxmax = this.props.mother_state.cutxmax
-        var new_cutymax = this.props.mother_state.cutymax
-        var new_cutxmin = this.props.mother_state.cutxmin
-        var new_cutymin = this.props.mother_state.cutymin
+        // var new_cutxmax = this.props.mother_state.cutxmax
+        // var new_cutymax = this.props.mother_state.cutymax
+        // var new_cutxmin = this.props.mother_state.cutxmin
+        // var new_cutymin = this.props.mother_state.cutymin
 
-        var el_cut_area = document.createElement('canvas')
-        el_cut_area.width = new_cutxmax+1-new_cutxmin
-        el_cut_area.height = new_cutymax+1-new_cutymin
-        var ctx_cut_area = el_cut_area.getContext('2d')
-        var cut_data = ctx_cut_area.getImageData(0,0,el_cut_area.width, el_cut_area.height)
+        // var el_cut_area = document.createElement('canvas')
+        // el_cut_area.width = new_cutxmax+1-new_cutxmin
+        // el_cut_area.height = new_cutymax+1-new_cutymin
+        // var ctx_cut_area = el_cut_area.getContext('2d')
+        // var cut_data = ctx_cut_area.getImageData(0,0,el_cut_area.width, el_cut_area.height)
 
-        // var printed = false
-        for (var i = 0; i < areaData.length; i+= 4) {
+        // // var printed = false
+        // for (var i = 0; i < areaData.length; i+= 4) {
 
-            if(areaData[i+3]==255){
-                ratioData[parseInt(i/4)] = ratioData[parseInt(i/4)] + 1/this.props.mother_state.gen_steps*100
-                // if(printed==false){
-                //     console.log(ratioData[parseInt(i/4)], this.props.mother_state.gen_steps)
-                //     printed=true
-                // }
+        //     if(areaData[i+3]==255){
+        //         ratioData[parseInt(i/4)] = ratioData[parseInt(i/4)] + 1/this.props.mother_state.gen_steps*100
+        //         // if(printed==false){
+        //         //     console.log(ratioData[parseInt(i/4)], this.props.mother_state.gen_steps)
+        //         //     printed=true
+        //         // }
                 
-                if(ratioData[parseInt(i/4)]>100){
-                    ratioData[parseInt(i/4)] = 100
-                }
-                var h = parseInt((i/4)/this.props.mother_state.pixelwidth)
-                var w = (i/4)%this.props.mother_state.pixelwidth
+        //         if(ratioData[parseInt(i/4)]>100){
+        //             ratioData[parseInt(i/4)] = 100
+        //         }
+        //         var h = parseInt((i/4)/this.props.mother_state.pixelwidth)
+        //         var w = (i/4)%this.props.mother_state.pixelwidth
 
-                if(w>=new_cutxmin && w<=new_cutxmax && h>=new_cutymin && h<=new_cutymax){
-                    var new_h = h-new_cutymin
-                    var new_w = w-new_cutxmin
-                    cut_data.data[(new_h*el_cut_area.width+new_w)*4+3] = 255
+        //         if(w>=new_cutxmin && w<=new_cutxmax && h>=new_cutymin && h<=new_cutymax){
+        //             var new_h = h-new_cutymin
+        //             var new_w = w-new_cutxmin
+        //             cut_data.data[(new_h*el_cut_area.width+new_w)*4+3] = 255
 
-                }
-            }
+        //         }
+        //     }
             
-        }
+        // }
         
 
-        ctx_cut_area.putImageData(cut_data, 0, 0)
+        // ctx_cut_area.putImageData(cut_data, 0, 0)
         
 
-        /////
-        var el_tmp = document.createElement('canvas')
-        el_tmp.width = this.props.mother_state.pixelwidth
-        el_tmp.height = this.props.mother_state.pixelheight
-        var ctx_tmp = el_tmp.getContext('2d');
-        var tmpData = ctx_tmp.getImageData(0,0,el_tmp.width, el_tmp.height)
-        for (var i = 0; i < areaData.length; i+= 4) {
-            tmpData.data[i+3] = parseInt(ratioData[parseInt(i/4)]*255/100)
-            tmpData.data[i+2] = 0
-            tmpData.data[i+1] = 0
-            tmpData.data[i] = 0
+        // /////
+        // var el_tmp = document.createElement('canvas')
+        // el_tmp.width = this.props.mother_state.pixelwidth
+        // el_tmp.height = this.props.mother_state.pixelheight
+        // var ctx_tmp = el_tmp.getContext('2d');
+        // var tmpData = ctx_tmp.getImageData(0,0,el_tmp.width, el_tmp.height)
+        // for (var i = 0; i < areaData.length; i+= 4) {
+        //     tmpData.data[i+3] = parseInt(ratioData[parseInt(i/4)]*255/100)
+        //     tmpData.data[i+2] = 0
+        //     tmpData.data[i+1] = 0
+        //     tmpData.data[i] = 0
             
-        }
-        ctx_tmp.putImageData(tmpData, 0, 0)
-        console.log(el_tmp.toDataURL())
-        /////
+        // }
+        // ctx_tmp.putImageData(tmpData, 0, 0)
+        // console.log(el_tmp.toDataURL())
+        // /////
 
 
-        this.props.mother_this.setState({area_img:el_cut_area.toDataURL()}, function(){
-            callback()
-        })
+        // this.props.mother_this.setState({area_img:el_cut_area.toDataURL()}, function(){
+        //     callback()
+        // })
         
     }
 
@@ -206,7 +207,7 @@ class AIDrawCanvas extends React.Component{
             current_layer: this.props.mother_state.current_layer,
             layer:cur_layer, 
             // area_img: el_area.toDataURL(), 
-            ratioData: JSON.parse(JSON.stringify(this.props.mother_state.ratioData)),
+            // ratioData: JSON.parse(JSON.stringify(this.props.mother_state.ratioData)),
             overcoat_img: overcoat_img,
             guidance_scale:   this.props.mother_state.guidance_scale, 
             overcoat_ratio:  this.props.mother_state.overcoat_ratio,
@@ -502,7 +503,7 @@ class AIDrawCanvas extends React.Component{
                 'stroke_id': _this.props.mother_state.stroke_id,
                 'layer_img':layer_img, 
                 'area_img': area_img, 
-                'ratioData': _this.props.mother_state.ratioData[_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id],
+                // 'ratioData': _this.props.mother_state.ratioData[_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id],
                 // 'overcoat_img': overcoat_img,
                 'guidance_scale':   _this.props.mother_state.guidance_scale, 
                 'overcoat_ratio':  _this.props.mother_state.overcoat_ratio/100,
@@ -599,7 +600,7 @@ class AIDrawCanvas extends React.Component{
         el_overcoat.height = this.props.mother_state.pixelheight
         var ctx_overcoat = el_overcoat.getContext('2d');
 
-        var ratioData = this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id]
+        // var ratioData = this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id]
         var areaData = ctx_area.getImageData(0,0,el_area.width, el_area.height);
         var layerData = ctx_layer.getImageData(0,0,el_layer.width, el_layer.height);
         var overcoatData = ctx_overcoat.getImageData(0,0,el_overcoat.width, el_overcoat.height)
@@ -629,13 +630,13 @@ class AIDrawCanvas extends React.Component{
 
             }
 
-            if(ratioData[parseInt(i/4)]>=100 && areaData.data[i+3]==255){
-                ratioData[parseInt(i/4)] = 100 - this.props.mother_state.overcoat_ratio
-                overcoatData.data[i+3]=255
-                overcoatData.data[i+2]=0
-                overcoatData.data[i+1]=0
-                overcoatData.data[i]=0
-            }
+            // if(ratioData[parseInt(i/4)]>=100 && areaData.data[i+3]==255){
+            //     ratioData[parseInt(i/4)] = 100 - this.props.mother_state.overcoat_ratio
+            //     overcoatData.data[i+3]=255
+            //     overcoatData.data[i+2]=0
+            //     overcoatData.data[i+1]=0
+            //     overcoatData.data[i]=0
+            // }
         }
 
         console.log(cutxmax, cutxmin, cutymax, cutymin)
@@ -656,7 +657,8 @@ class AIDrawCanvas extends React.Component{
         for(var i=cutxmin; i<=cutxmax; i++){
             for(var j=cutymin; j<=cutymax; j++){
                 var idx = (j*this.props.mother_state.pixelwidth+i)*4
-                if(areaData.data[idx+3]!=0 || this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id][idx/4]>=100){
+                if(areaData.data[idx+3]!=0){
+                    // || this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id][idx/4]>=100){
                     if(new_cutxmax<i){
                         new_cutxmax=i
                     }
@@ -775,7 +777,7 @@ class AIDrawCanvas extends React.Component{
 
         
         console.log(this.props.mother_state.area_img, 'area_img')
-        console.log(this.props.mother_state.overcoat_img, 'overcoat_img')
+        // console.log(this.props.mother_state.overcoat_img, 'overcoat_img')
         console.log(this.props.mother_state.layer_img, 'layer_img')
 
         var sent_data = {
@@ -787,7 +789,7 @@ class AIDrawCanvas extends React.Component{
             'area_img':this.props.mother_state.area_img, 
             'latents': this.props.mother_state.latents,
             // 'ratioData': this.props.mother_state.ratioData[this.props.mother_state.layers[this.props.mother_state.current_layer].layer_id],
-            'overcoat_img': this.props.mother_state.overcoat_img,
+            // 'overcoat_img': this.props.mother_state.overcoat_img,
             'guidance_scale':   this.props.mother_state.guidance_scale, 
             'overcoat_ratio':  this.props.mother_state.overcoat_ratio/100,
             'text_prompts': text_prompts,
