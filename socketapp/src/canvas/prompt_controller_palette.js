@@ -10,6 +10,8 @@ class PromptControllerPalette extends React.Component{
         step: 40,
         current_prompt: -1,
         palette_fix: false,
+
+        prompt_update_tick: false        
     }
 
     componentDidMount(){
@@ -44,7 +46,10 @@ class PromptControllerPalette extends React.Component{
             prompts: [idx],
             weights: [1],
         }
-        this.props.mother_this.setState({selected_prompt:selected_prompt})
+        var _this = this
+        this.props.mother_this.setState({selected_prompt:selected_prompt}, function(){
+            _this.sendUpdatePromptText()
+        })
     }
 
     setDoublePrompt(val, idx, e){
@@ -79,7 +84,10 @@ class PromptControllerPalette extends React.Component{
             prompts: [val[0], val[1]],
             weights: [w1, w2],
         }
-        this.props.mother_this.setState({selected_prompt:selected_prompt})
+        var _this = this
+        this.props.mother_this.setState({selected_prompt:selected_prompt}, function(){
+            _this.sendUpdatePromptText()
+        })
         this.setState({})
     }
 
@@ -115,9 +123,46 @@ class PromptControllerPalette extends React.Component{
             prompts: [val[0], val[1], val[2]],
             weights: matmul_result,
         }
-        this.props.mother_this.setState({selected_prompt:selected_prompt})
+        var _this = this
+        this.props.mother_this.setState({selected_prompt:selected_prompt}, function(){
+            _this.sendUpdatePromptText()
+        })
         this.setState({})
 
+    }
+
+    sendUpdatePromptText(){
+        if(this.state.prompt_update_tick==false){
+            if(this.props.mother_state.gen_start){
+                console.log('prompt updated during generation')
+                var text_prompts = []
+                var text_prompt_weights = []
+                for(var i in this.props.mother_state.selected_prompt.prompts){
+                    var prompt_idx = this.props.mother_state.selected_prompt.prompts[i]
+                    var prompt = this.props.mother_state.prompts[prompt_idx]
+                    if(prompt.istext){
+                        text_prompts.push(prompt.prompt)
+                        text_prompt_weights.push(this.props.mother_state.selected_prompt.weights[i])
+                    }
+                }
+                
+                this.props.mother_this.AIDrawCanvas.current.socket.emit('prompts_update', {
+                    'stroke_id': this.props.mother_state.stroke_id, 
+                    'text_prompts': text_prompts,
+                    'text_prompt_weights': text_prompt_weights,
+                    'prompts_proto': JSON.parse(JSON.stringify(this.props.mother_state.prompts)), 
+                    'selected_prompts_proto': JSON.parse(JSON.stringify(this.props.mother_state.selected_prompt)),
+    
+                })
+                var _this = this
+                this.setState({prompt_update_tick: true}, function(){
+                    setTimeout(function(){
+                        _this.setState({prompt_update_tick: false}, 200)
+                    })
+                })
+            }
+        }   
+        
     }
 
     toggleFix(){

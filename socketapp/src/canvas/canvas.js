@@ -123,17 +123,17 @@ class Canvas extends React.Component {
             },
             {
                 _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'white sheep on a plain',
+                prompt: 'a glowing outerplanet tower made of diamonds with mint color sunset behind, high resolution, rendered with unreal4, 4k',
                 position: [0.8,0.9],
-                color: '#ffeeee',
+                color: '#a9e1ee',
                 istext:true
 
             },
             {
                 _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'oil painting',
+                prompt: 'dystopian tower',
                 position: [0.8,0.8],
-                color: '#8888ff',
+                color: '#3445a9',
                 istext:true
 
             }
@@ -157,16 +157,21 @@ class Canvas extends React.Component {
         selected_prompt: undefined,
         guidance_scale: 7,
         single_stroke_ratio: 100,
-        gen_steps: 50,
+        gen_steps: 20,
         overcoat_ratio: 50, 
         multi_strokes:false,
         gen_tick: -1,
         ratioData: {},
-
+        AI_stroke_tables: {},
+        AI_intermediate_objs: {}
     }
 
     AIDrawCanvas = React.createRef()
     // TODO lasso tool - nonlasso-based resize
+
+    componentDidUpdate(){
+        // console.log(this.state.AI_intermediate_objs)
+    }
 
     componentDidMount(){
         if(document.getElementById(this.state.boardname)!=undefined){
@@ -504,17 +509,33 @@ class Canvas extends React.Component {
         if(this.state.undo_states.length>2000){
             this.state.undo_states.shift();
         }
+
+        for(var i in this.state.redo_states){
+            if(this.state.redo_states[i]['type']=='ai_gen'){
+                var stroke_id = this.state.redo_states[i]['stroke_id']
+                for(var j in this.state.AI_intermediate_objs){
+                    if(this.state.AI_intermediate_objs[j]['stroke_id']==stroke_id){
+                        delete this.state.AI_intermediate_objs[j]
+                    }
+                }
+                delete this.state.AI_stroke_tables[stroke_id]
+            }
+        }  
         this.setState({redo_states: []})
     }
 
     undo(){
+        console.log(this.state.undo_states, this.state.redo_states, this.state.gen_tick)
+        var skip_redo = false
         if(this.state.undo_states.length>0){
-            console.log(this.state.undo_states)
+            // console.log(this.state.undo_states)
             var undo_obj = this.state.undo_states.pop()
             var redo_obj
             if(undo_obj.type=='within_layer'){
                 redo_obj = {
                     type:'within_layer',
+                    'stroke_id': this.state.stroke_id,
+                    'AI_stroke_id': this.state.AI_stroke_id,
                     _id: this.state.current_layer,
                     layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])),
                     lasso: this.state.lasso.slice(),
@@ -535,6 +556,8 @@ class Canvas extends React.Component {
                     ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
                     ctx.drawImage(this, 0,0)
                 }
+                this.state.stroke_id=undo_obj.stroke_id
+                this.state.AI_stroke_id = undo_obj.AI_stroke_id
                 this.state.lasso = undo_obj.lasso
                 this.state.lasso_img = undo_obj.lasso_img
                 this.state.nonlasso_ret = undo_obj.nonlasso_ret
@@ -543,6 +566,8 @@ class Canvas extends React.Component {
             }else if(undo_obj.type=='whole_layers'){
                 redo_obj = {
                     type:'whole_layers',
+                    'stroke_id': this.state.stroke_id,
+                    'AI_stroke_id': this.state.AI_stroke_id,
                     layers: JSON.parse(JSON.stringify(this.state.layers)),
                     current_layer: this.state.current_layer
                 }
@@ -560,92 +585,246 @@ class Canvas extends React.Component {
                         ctx.drawImage(this, 0,0)
                     }
                 }
+                this.state.stroke_id=undo_obj.stroke_id
+                this.state.AI_stroke_id = undo_obj.AI_stroke_id
                 this.state.layers = undo_obj.layers
                 this.state.current_layer = undo_obj.current_layer
 
-            }else if(undo_obj.type=='gen'){
-                var latents = this.state.latents
-                if(latents!=undefined){
-                    latents = JSON.parse(JSON.stringify(latents))
-                }
-                redo_obj = {
-                    type: 'gen',
-                    
-                    stroke_id: this.state.stroke_id, 
-
-                    gen_tick: this.state.gen_tick,
-
-                    current_layer: this.state.current_layer,
-                    layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])), 
-                    // area_img: el_area.toDataURL(), 
-                    // ratioData: JSON.parse(JSON.stringify(this.state.ratioData)),
-                    overcoat_img: this.state.overcoat_img,
-                    guidance_scale:   this.state.guidance_scale, 
-                    overcoat_ratio:  this.state.overcoat_ratio,
-                    AI_brush_size: this.state.AI_brush_size,
-                    single_stroke_ratio: this.state.single_stroke_ratio,
-                    gen_steps: this.state.gen_steps,
-                    selected_prompt: JSON.parse(JSON.stringify(this.state.selected_prompt)), 
-                    directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
-                    prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
-                    prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
-                    latents: latents,
-                    cutxmin: this.state.cutxmin, 
-                    cutxmax: this.state.cutxmax, 
-                    cutymin: this.state.cutymin, 
-                    cutymax: this.state.cutymax, 
-                }
-
-                this.state.stroke_id = undo_obj.stroke_id
-                this.state.gen_tick = undo_obj.gen_tick
-
-                this.state.current_layer = undo_obj.current_layer
-                this.state.layers[undo_obj.current_layer] = undo_obj.layer
-                var el = document.getElementById('sketchpad_canvas_'+undo_obj.layer.layer_id)
-                var ctx = el.getContext('2d');
+            }else if(undo_obj.type=='ai_gen'){
+                // TODO if generation is being done, stop it
                 
-                var img = new Image();
-                img.src = undo_obj.layer.image
-                var _this = this
-                img.onload = function(){
-                    ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
-                    ctx.drawImage(this, 0,0)
+                
+                if(this.state.gen_tick==0){
+                    redo_obj = JSON.parse(JSON.stringify(undo_obj))
+                    this.state.stroke_id=undefined //undo_obj.stroke_id
+                    this.state.AI_stroke_id = -1 // undo_obj.AI_stroke_id
+                    this.state.layers[undo_obj._id] = undo_obj.layer
+                    var el = document.getElementById('sketchpad_canvas_'+undo_obj.layer.layer_id)
+                    var ctx = el.getContext('2d');
+                    
+                    var img = new Image();
+                    img.src = undo_obj.layer.image
+                    var _this = this
+                    img.onload = function(){
+                        ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
+                        ctx.drawImage(this, 0,0)
+                    }
+                    this.state.gen_tick = -1
+                    this.state.lasso = undo_obj.lasso
+                    this.state.lasso_img = undo_obj.lasso_img
+                    this.state.nonlasso_ret = undo_obj.nonlasso_ret
+                    this.state.unlassoed_canvas = undo_obj.unlassoed_canvas
+                    this.state.lassoed_canvas = undo_obj.lassoed_canvas
+
+                }else{
+                    this.state.undo_states.push(undo_obj)
+                    var gen_tick = this.state.gen_tick
+
+                    if(gen_tick==-1){
+                        gen_tick = this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length-1
+                        // do undo store
+                        this.state.stroke_id = undo_obj.stroke_id
+                        this.state.AI_stroke_id = undo_obj.AI_stroke_id
+                        this.state.layer_img = undo_obj.layer_img
+                        this.state.area_img = undo_obj.area_img
+                        this.state.seed = undo_obj.seed
+                        this.state.overcoat_ratio = undo_obj.overcoat_ratio
+                        // this.state.cutxmin = undo_obj.cutxmin
+                        // this.state.cutymin = undo_obj.cutymin
+                        // this.state.cutxmax = undo_obj.cutxmax
+                        // this.state.cutymax = undo_obj.cutymax
+                        // this.state.gen_steps = undo_obj.gen_steps
+                        
+
+                    }
+
+
+                    var obj_id = this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id][gen_tick-1]
+                    var obj = this.state.AI_intermediate_objs[obj_id]
+                    console.log(obj_id, obj)
+
+                    this.state.current_layer = obj.current_layer
+                    this.state.layers[obj.current_layer] = JSON.parse(JSON.stringify(obj.layer))
+                    var el = document.getElementById('sketchpad_canvas_'+obj.layer.layer_id)
+                    var ctx = el.getContext('2d');
+                    
+                    var img = new Image();
+                    img.src = obj.layer.image
+                    var _this = this
+                    img.onload = function(){
+                        ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
+                        ctx.drawImage(this, 0,0)
+                    }
+
+                    this.state.gen_tick = gen_tick-1
+                    this.state.guidance_scale = obj.guidance_scale
+                    this.state.gen_steps = obj.gen_steps
+                    this.state.selected_prompt = obj.selected_prompt
+                    this.state.directional_prompts = obj.directional_prompts
+                    this.state.prompts = obj.prompts
+                    this.state.prompt_groups = obj.prompt_groups
+                    this.state.latents = obj.latents
+                    this.state.cutxmin = obj.cutxmin
+                    this.state.cutymin = obj.cutymin
+                    this.state.cutxmax = obj.cutxmax
+                    this.state.cutymax = obj.cutymax
+
+                    skip_redo = true
+
                 }
 
-                // this.state.stroke_id = undefined
-                // this.state.ratioData = undo_obj.ratioData
-                this.state.overcoat_img = undo_obj.overcoat_img
-                this.state.guidance_scale = undo_obj.guidance_scale
-                this.state.overcoat_ratio = undo_obj.overcoat_ratio
-                this.state.AI_brush_size = undo_obj.AI_brush_size
-                this.state.single_stroke_ratio = undo_obj.single_stroke_ratio
-                this.state.gen_steps = undo_obj.gen_steps
-                this.state.selected_prompt = undo_obj.selected_prompt
-                this.state.directional_prompts = undo_obj.directional_prompts
-                this.state.prompts = undo_obj.prompts
-                this.state.prompt_groups = undo_obj.prompt_groups
-                this.state.latents = undo_obj.latents
-                this.state.cutxmin = undo_obj.cutxmin
-                this.state.cutymin = undo_obj.cutymin
-                this.state.cutxmax = undo_obj.cutxmax
-                this.state.cutymax = undo_obj.cutymax
+
+                // var latents = this.state.latents
+                // if(latents!=undefined){
+                //     latents = JSON.parse(JSON.stringify(latents))
+                // }
+                // redo_obj = {
+                //     type: 'gen',
+                    
+                //     stroke_id: this.state.stroke_id, 
+
+                //     gen_tick: this.state.gen_tick,
+
+                //     current_layer: this.state.current_layer,
+                //     layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])), 
+                //     // area_img: el_area.toDataURL(), 
+                //     // ratioData: JSON.parse(JSON.stringify(this.state.ratioData)),
+                //     overcoat_img: this.state.overcoat_img,
+                //     guidance_scale:   this.state.guidance_scale, 
+                //     overcoat_ratio:  this.state.overcoat_ratio,
+                //     AI_brush_size: this.state.AI_brush_size,
+                //     single_stroke_ratio: this.state.single_stroke_ratio,
+                //     gen_steps: this.state.gen_steps,
+                //     selected_prompt: JSON.parse(JSON.stringify(this.state.selected_prompt)), 
+                //     directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
+                //     prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
+                //     prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
+                //     latents: latents,
+                //     cutxmin: this.state.cutxmin, 
+                //     cutxmax: this.state.cutxmax, 
+                //     cutymin: this.state.cutymin, 
+                //     cutymax: this.state.cutymax, 
+                // }
+
+                // this.state.stroke_id = undo_obj.stroke_id
+                // this.state.gen_tick = undo_obj.gen_tick
+
+                // this.state.current_layer = undo_obj.current_layer
+                // this.state.layers[undo_obj.current_layer] = undo_obj.layer
+                // var el = document.getElementById('sketchpad_canvas_'+undo_obj.layer.layer_id)
+                // var ctx = el.getContext('2d');
+                
+                // var img = new Image();
+                // img.src = undo_obj.layer.image
+                // var _this = this
+                // img.onload = function(){
+                //     ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
+                //     ctx.drawImage(this, 0,0)
+                // }
+
+                // // this.state.stroke_id = undefined
+                // // this.state.ratioData = undo_obj.ratioData
+                // this.state.overcoat_img = undo_obj.overcoat_img
+                // this.state.guidance_scale = undo_obj.guidance_scale
+                // this.state.overcoat_ratio = undo_obj.overcoat_ratio
+                // this.state.AI_brush_size = undo_obj.AI_brush_size
+                // this.state.single_stroke_ratio = undo_obj.single_stroke_ratio
+                // this.state.gen_steps = undo_obj.gen_steps
+                // this.state.selected_prompt = undo_obj.selected_prompt
+                // this.state.directional_prompts = undo_obj.directional_prompts
+                // this.state.prompts = undo_obj.prompts
+                // this.state.prompt_groups = undo_obj.prompt_groups
+                // this.state.latents = undo_obj.latents
+                // this.state.cutxmin = undo_obj.cutxmin
+                // this.state.cutymin = undo_obj.cutymin
+                // this.state.cutxmax = undo_obj.cutxmax
+                // this.state.cutymax = undo_obj.cutymax
 
 
             }
-            this.state.redo_states.push(redo_obj)
+            if(skip_redo==false){
+                this.state.redo_states.push(redo_obj)
+            }
+            
             this.setState({})
         }
         
     }
 
     redo(){
+        console.log(this.state.undo_states, this.state.redo_states)
+        var skip_undo = false
+        var undo_obj
+
+        if(this.state.undo_states.length>0){
+            var last_undo_obj = this.state.undo_states[this.state.undo_states.length-1]
+            
+            if(last_undo_obj.type=='ai_gen'){
+                if(this.state.gen_tick!=-1 && this.state.gen_tick<this.state.AI_stroke_tables[last_undo_obj.stroke_id][last_undo_obj.AI_stroke_id].length-1){
+                    console.log('stuckingen')
+
+                    var gen_tick = this.state.gen_tick
+
+                    var obj_id = this.state.AI_stroke_tables[last_undo_obj.stroke_id][last_undo_obj.AI_stroke_id][gen_tick+1]
+                    var obj = this.state.AI_intermediate_objs[obj_id]
+                    console.log(obj_id, obj)
+
+                    this.state.current_layer = obj.current_layer
+                    this.state.layers[obj.current_layer] = JSON.parse(JSON.stringify(obj.layer))
+                    var el = document.getElementById('sketchpad_canvas_'+obj.layer.layer_id)
+                    var ctx = el.getContext('2d');
+                    
+                    var img = new Image();
+                    img.src = obj.layer.image
+                    var _this = this
+                    img.onload = function(){
+                        ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
+                        ctx.drawImage(this, 0,0)
+                    }
+
+                    this.state.gen_tick = gen_tick+1
+                    this.state.guidance_scale = obj.guidance_scale
+                    this.state.gen_steps = obj.gen_steps
+                    this.state.selected_prompt = obj.selected_prompt
+                    this.state.directional_prompts = obj.directional_prompts
+                    this.state.prompts = obj.prompts
+                    this.state.prompt_groups = obj.prompt_groups
+                    this.state.latents = obj.latents
+                    this.state.cutxmin = obj.cutxmin
+                    this.state.cutymin = obj.cutymin
+                    this.state.cutxmax = obj.cutxmax
+                    this.state.cutymax = obj.cutymax
+                    this.state.stroke_id = last_undo_obj.stroke_id
+                    this.state.AI_stroke_id = last_undo_obj.AI_stroke_id
+                    this.setState({})
+                    return
+                }
+                else if(this.state.gen_tick==this.state.AI_stroke_tables[last_undo_obj.stroke_id][last_undo_obj.AI_stroke_id].length-1){
+                    console.log('transition')
+                    this.state.gen_tick = -1
+                    this.state.stroke_id = undefined
+                    this.state.AI_stroke_id = -1
+                    this.setState({})
+                    return
+                }
+                // do something
+
+            }
+        }
+
+
+
         if(this.state.redo_states.length>0){
-            console.log(this.state.redo_states)
+            
             var redo_obj = this.state.redo_states.pop()
-            var undo_obj
+            
+            
+            
             if(redo_obj.type=='within_layer'){
                 undo_obj = {
                     type:'within_layer',
+                    'stroke_id': this.state.stroke_id,
+                    'AI_stroke_id': this.state.AI_stroke_id,
                     _id: this.state.current_layer,
                     layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])),
                     lasso: this.state.lasso.slice(),
@@ -666,6 +845,8 @@ class Canvas extends React.Component {
                     ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
                     ctx.drawImage(this, 0,0)
                 }
+                this.state.stroke_id=redo_obj.stroke_id
+                this.state.AI_stroke_id = redo_obj.AI_stroke_id
                 this.state.lasso = redo_obj.lasso
                 this.state.lasso_img = redo_obj.lasso_img
                 this.state.nonlasso_ret = redo_obj.nonlasso_ret
@@ -674,6 +855,8 @@ class Canvas extends React.Component {
             }else if(redo_obj.type=='whole_layers'){
                 undo_obj = {
                     type:'whole_layers',
+                    'stroke_id': this.state.stroke_id,
+                    'AI_stroke_id': this.state.AI_stroke_id,
                     layers: JSON.parse(JSON.stringify(this.state.layers)),
                     current_layer: this.state.current_layer
                 }
@@ -691,73 +874,53 @@ class Canvas extends React.Component {
                         ctx.drawImage(this, 0,0)
                     }
                 }
+                this.state.stroke_id=redo_obj.stroke_id
+                this.state.AI_stroke_id = redo_obj.AI_stroke_id
                 this.state.layers = redo_obj.layers
                 this.state.current_layer = redo_obj.current_layer
 
-            }else if(redo_obj.type == 'gen'){
-                var latents = this.state.latents
-                if(latents!=undefined){
-                    latents = JSON.parse(JSON.stringify(latents))
-                }
-                undo_obj = {
-                    type: 'gen',
-                    
-                    stroke_id: this.state.stroke_id, 
+            }else if(redo_obj.type == 'ai_gen'){
+                undo_obj = JSON.parse(JSON.stringify(redo_obj))
+                this.state.stroke_id=redo_obj.stroke_id
+                this.state.AI_stroke_id = redo_obj.AI_stroke_id
+                console.log(redo_obj.stroke_id, redo_obj.AI_stroke_id, redo_obj.gen_tick)
 
-                    gen_tick: this.state.gen_tick,
+                this.state.layer_img = redo_obj.layer_img
+                this.state.area_img = redo_obj.area_img
+                this.state.seed = redo_obj.seed
+                this.state.overcoat_ratio = redo_obj.overcoat_ratio
 
-                    current_layer: this.state.current_layer,
-                    layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])), 
-                    // area_img: el_area.toDataURL(), 
-                    // ratioData: JSON.parse(JSON.stringify(this.state.ratioData)),
-                    overcoat_img: this.state.overcoat_img,
-                    guidance_scale:   this.state.guidance_scale, 
-                    overcoat_ratio:  this.state.overcoat_ratio,
-                    AI_brush_size: this.state.AI_brush_size,
-                    single_stroke_ratio: this.state.single_stroke_ratio,
-                    gen_steps: this.state.gen_steps,
-                    selected_prompt: JSON.parse(JSON.stringify(this.state.selected_prompt)), 
-                    directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
-                    prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
-                    prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
-                    latents: latents,
-                    cutxmin: this.state.cutxmin, 
-                    cutxmax: this.state.cutxmax, 
-                    cutymin: this.state.cutymin, 
-                    cutymax: this.state.cutymax, 
-                }
+                var gen_tick = 0
 
-                this.state.stroke_id = redo_obj.stroke_id
-                this.state.gen_tick = redo_obj.gen_tick
+                var obj_id = this.state.AI_stroke_tables[redo_obj.stroke_id][redo_obj.AI_stroke_id][gen_tick]
+                var obj = this.state.AI_intermediate_objs[obj_id]
+                console.log(obj_id, obj)
 
-                this.state.current_layer = redo_obj.current_layer
-                this.state.layers[redo_obj.current_layer] = redo_obj.layer
-                var el = document.getElementById('sketchpad_canvas_'+redo_obj.layer.layer_id)
+                this.state.current_layer = obj.current_layer
+                this.state.layers[obj.current_layer] = JSON.parse(JSON.stringify(obj.layer))
+                var el = document.getElementById('sketchpad_canvas_'+obj.layer.layer_id)
                 var ctx = el.getContext('2d');
                 
                 var img = new Image();
-                img.src = redo_obj.layer.image
+                img.src = obj.layer.image
                 var _this = this
                 img.onload = function(){
                     ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
                     ctx.drawImage(this, 0,0)
                 }
-                // this.state.stroke_id = undefined
-                // this.state.ratioData = redo_obj.ratioData
-                this.state.overcoat_img = redo_obj.overcoat_img
-                this.state.guidance_scale = redo_obj.guidance_scale
-                this.state.overcoat_ratio = redo_obj.overcoat_ratio
-                this.state.AI_brush_size = redo_obj.AI_brush_size
-                this.state.single_stroke_ratio = redo_obj.single_stroke_ratio
-                this.state.gen_steps = redo_obj.gen_steps
-                this.state.selected_prompt = redo_obj.selected_prompt
-                this.state.directional_prompts = redo_obj.directional_prompts
-                this.state.prompts = redo_obj.prompts
-                this.state.prompt_groups = redo_obj.prompt_groups
-                this.state.cutxmin = redo_obj.cutxmin
-                this.state.cutymin = redo_obj.cutymin
-                this.state.cutxmax = redo_obj.cutxmax
-                this.state.cutymax = redo_obj.cutymax
+
+                this.state.gen_tick = gen_tick
+                this.state.guidance_scale = obj.guidance_scale
+                this.state.gen_steps = obj.gen_steps
+                this.state.selected_prompt = obj.selected_prompt
+                this.state.directional_prompts = obj.directional_prompts
+                this.state.prompts = obj.prompts
+                this.state.prompt_groups = obj.prompt_groups
+                this.state.latents = obj.latents
+                this.state.cutxmin = obj.cutxmin
+                this.state.cutymin = obj.cutymin
+                this.state.cutxmax = obj.cutxmax
+                this.state.cutymax = obj.cutymax
                 
             }
             this.state.undo_states.push(undo_obj)

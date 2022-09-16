@@ -2,12 +2,14 @@ import React from 'react'
 
 class GenerationController extends React.Component{
     setGenStop(){
+        console.log(this.props.mother_state.gen_tick, this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id][this.props.mother_state.AI_stroke_id].length)
+        this.props.mother_this.AIDrawCanvas.current.socket.emit('gen_stop', {'stroke_id': this.props.mother_state.stroke_id})
         this.props.mother_this.setState({gen_start:false})
     }
     setGenStart(){
         var _this = this
         this.props.mother_this.setState({gen_start:true}, function(){
-            _this.props.mother_this.AIDrawCanvas.current.processGen()
+            _this.props.mother_this.AIDrawCanvas.current.initGen2(_this.props.mother_state.gen_tick)
         })
     }
 

@@ -26,6 +26,33 @@ class PromptControllerList extends React.Component{
         this.props.mother_this.setState({})
     }
 
+    sendUpdatePromptText(){
+        if(this.props.mother_state.gen_start){
+            console.log('prompt updated during generation')
+            var text_prompts = []
+            var text_prompt_weights = []
+            for(var i in this.props.mother_state.selected_prompt.prompts){
+                var prompt_idx = this.props.mother_state.selected_prompt.prompts[i]
+                var prompt = this.props.mother_state.prompts[prompt_idx]
+                if(prompt.istext){
+                    text_prompts.push(prompt.prompt)
+                    text_prompt_weights.push(this.props.mother_state.selected_prompt.weights[i])
+                }
+            }
+
+            this.props.mother_this.AIDrawCanvas.current.socket.emit('prompts_update', {
+                'stroke_id': this.props.mother_state.stroke_id, 
+                'text_prompts': text_prompts,
+                'text_prompt_weights': text_prompt_weights,
+                'prompts_proto': JSON.parse(JSON.stringify(this.props.mother_state.prompts)), 
+                'selected_prompts_proto': JSON.parse(JSON.stringify(this.props.mother_state.selected_prompt)),
+
+            })
+        }
+        
+
+    }
+
     addNewPrompt(idx, e){
         var prompt = {
             _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
@@ -83,7 +110,7 @@ class PromptControllerList extends React.Component{
 
     renderTextPromptInput(val, idx, fontcolor){
         return (<div style={{flexGrow: 1}}>
-            <textarea style={{color:fontcolor}} id={'prompt_'+val._id} className={'prompt_textarea'} value={val.prompt} onChange={this.updatePromptText.bind(this,idx)}></textarea>
+            <textarea style={{color:fontcolor}} id={'prompt_'+val._id} className={'prompt_textarea'} value={val.prompt} onChange={this.updatePromptText.bind(this,idx)} onBlur={this.sendUpdatePromptText.bind(this)}></textarea>
         </div>)
     }
 
@@ -133,11 +160,11 @@ class PromptControllerList extends React.Component{
                 {val.istext && this.renderTextPromptInput(val, idx, fontcolor)}
                 {!val.istext && this.renderImagePromptInput(val, idx, fontcolor)}
                 
-                <div className={'btn'} style={{height: 18, width: 24, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.changePromptType.bind(this, idx)}>
+                {/* <div className={'btn'} style={{height: 18, width: 24, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.changePromptType.bind(this, idx)}>
                     {val.istext && <i class="fa fa-comment" style={{fontSize:16}} ></i>}
                     {!val.istext && <i class="fa fa-image" style={{fontSize:16}} ></i>}
-                </div>
-                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)}>
+                </div> */}
+                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.gen_start}>
                     X
                 </div>
             </div>)
