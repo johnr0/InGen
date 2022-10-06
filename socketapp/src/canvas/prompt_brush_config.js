@@ -12,8 +12,9 @@ class PromptBrushConfig extends React.Component{
             if(this.state.guidance_scale_update_tick==false){
                 console.log('gd scale update')
                 this.props.mother_this.AIDrawCanvas.current.socket.emit('guidance_scale_update', {stroke_id: this.props.mother_state.stroke_id, guidance_scale: parseFloat(e.target.value)})
+                var _this = this
                 this.setState({guidance_scale_update_tick:true}, function(){
-                    var _this = this
+                    
                     setTimeout(function(){
                         _this.setState({guidance_scale_update_tick:false})
                     }, 200)
@@ -43,7 +44,7 @@ class PromptBrushConfig extends React.Component{
     multiStrokeOff(){
         var _this = this
         this.props.mother_this.setState({multi_strokes:false}, function(){
-            _this.props.mother_this.AIDrawCanvas.current.initGen();
+            _this.props.mother_this.AIDrawCanvas.current.initGen2();
         })
     }
 

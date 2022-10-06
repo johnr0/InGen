@@ -132,6 +132,14 @@ class PromptControllerPalette extends React.Component{
     }
 
     sendUpdatePromptText(){
+
+        if(this.props.mother_state.gen_start==false && this.props.mother_state.single_stroke_ratio==0 && this.props.mother_state.stroke_id!=undefined){
+            // start gen
+            console.log('start!', this.props.mother_state.gen_steps, this.props.mother_state.gen_tick)
+            this.props.mother_this.AIDrawCanvas.current.initGen2(this.props.mother_state.gen_tick, 100, true)
+            this.props.mother_this.setState({gen_start:true})
+        }
+
         if(this.state.prompt_update_tick==false){
             if(this.props.mother_state.gen_start){
                 console.log('prompt updated during generation')
@@ -157,8 +165,8 @@ class PromptControllerPalette extends React.Component{
                 var _this = this
                 this.setState({prompt_update_tick: true}, function(){
                     setTimeout(function(){
-                        _this.setState({prompt_update_tick: false}, 200)
-                    })
+                        _this.setState({prompt_update_tick: false})
+                    }, 200)
                 })
             }
         }   
@@ -170,8 +178,7 @@ class PromptControllerPalette extends React.Component{
     }
 
     initMovePrompt(idx){
-        console.log(this)
-        if(this.state.palette_fix==false){
+        if(this.state.palette_fix==false && this.props.mother_state.gen_tick<0){
             this.setState({current_prompt: idx, action:'move_prompt'})
         }
         this.setSinglePrompt(idx)
@@ -194,6 +201,12 @@ class PromptControllerPalette extends React.Component{
             this.setState({action:'idle', current_prompt: -1})
         }
         this.setState({control_action:'idle'})
+        if(this.props.mother_state.gen_start && this.props.mother_state.single_stroke_ratio==0 && this.props.mother_state.stroke_id!=undefined){
+            // end gen
+            console.log('end!')
+            this.props.mother_this.AIDrawCanvas.current.socket.emit('gen_stop', {'stroke_id': this.props.mother_state.stroke_id})
+            this.props.mother_this.setState({gen_start:false})
+        }
     }
 
     movePrompt(e){
@@ -498,7 +511,7 @@ class PromptControllerPalette extends React.Component{
             var height = val.position[1]*palette_height
 
             return (<circle
-                onPointerEnter={this.promptEnter.bind(this, idx)} cx={width} cy={height} r={20} stroke="white" strokeWidth={2} fill={val.color} 
+                onPointerEnter={this.promptEnter.bind(this, idx)} onPointerMove={this.promptEnter.bind(this, idx)} cx={width} cy={height} r={20} stroke="white" strokeWidth={2} fill={val.color} 
             onPointerDown={this.initMovePrompt.bind(this, idx)} style={{pointerEvents: (this.state.current_prompt==idx)?'none':''}}
             ></circle>)
         })
@@ -528,6 +541,248 @@ class PromptControllerPalette extends React.Component{
             }
         }
         
+    }
+
+    drawCurve(p) {
+
+        var pc = this.controlPoints(p); // the control points array
+      
+        let d="";
+        d += `M${p[0][0]}, ${p[0][1]}`
+        
+        // the first & the last curve are quadratic Bezier
+        // because I'm using push(), pc[i][1] comes before pc[i][0]
+        d += `Q${pc[1][1].x}, ${pc[1][1].y}, ${p[1][0]}, ${p[1][1]}`;
+      
+      
+        if (p.length > 2) {
+          // central curves are cubic Bezier
+          for (var i = 1; i < p.length - 2; i++) {
+            
+           d+= `C${pc[i][0].x}, ${pc[i][0].y} ${pc[i + 1][1].x},${pc[i + 1][1].y} ${p[i + 1][0]},${p[i + 1][1]}`; 
+      
+          }//end for
+          // the first & the last curve are quadratic Bezier
+          let n = p.length - 1;
+          d+=`Q${pc[n - 1][0].x}, ${pc[n - 1][0].y} ${p[n][0]},${p[n][1]}`;
+        }
+        return d;
+    }
+
+    controlPoints(p, t=1/5) {
+        // given the points array p calculate the control points
+        let pc = [];
+        for (var i = 1; i < p.length - 1; i++) {
+            let dx = p[i - 1][0] - p[i + 1][0]; // difference x
+            let dy = p[i - 1][1] - p[i + 1][1]; // difference y
+            // the first control point
+            let x1 = p[i][0] - dx * t;
+            let y1 = p[i][1] - dy * t;
+            let o1 = {
+            x: x1,
+            y: y1
+            };
+        
+            // the second control point
+            var x2 = p[i][0] + dx * t;
+            var y2 = p[i][1] + dy * t;
+            var o2 = {
+            x: x2,
+            y: y2
+            };
+        
+            // building the control points array
+            pc[i] = [];
+            pc[i].push(o1);
+            pc[i].push(o2);
+        }
+        return pc;
+    }
+
+    renderPastPaths(){
+        var palette_el = document.getElementById('prompt_palette_board')
+
+        if(palette_el==null){
+            return
+        }
+
+        var palette_width = palette_el.getBoundingClientRect().width
+        var palette_height = palette_el.getBoundingClientRect().height
+
+        if(this.props.mother_state.stroke_id!=undefined){
+            if(this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id]!=undefined){
+                var AI_stroke_tables = this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id]
+                return AI_stroke_tables.map((AI_stroke_list, idx)=>{
+                    var points = []
+
+                    for(var i in AI_stroke_list){
+                        var intermediate_id = AI_stroke_list[i]
+                        var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
+                        if(cur_obj.selected_prompt==undefined){
+                            console.log(cur_obj)
+                            return
+                        }
+                        var width = cur_obj.selected_prompt.position[0]*palette_width
+                        var height = cur_obj.selected_prompt.position[1]*palette_height
+
+                        if(i>0){
+                            var prev_intermediate_id = AI_stroke_list[i-1]
+                            var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
+                            if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                // change the position to consider rotation
+                                var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
+                                width = width + 6*Math.cos(2*Math.PI*rad_ratio) + 6*Math.sin(2*Math.PI*rad_ratio)
+                                height = height -6*Math.sin(2*Math.PI*rad_ratio) + 6*Math.cos(2*Math.PI*rad_ratio)
+                            }
+                        }
+                        points.push([width, height])
+                        
+                    }
+                    if(points.length<3){
+                        return
+                    }
+
+                    var curve = this.drawCurve(points)
+
+                    var s_color = 'white'
+
+                    if(idx==this.props.mother_state.AI_stroke_id){
+                        s_color = '#32cf7d'
+                    }
+
+                    return (<g>
+                        <path stroke={'white'} fill='transparent' d={curve} strokeWidth={2} style={{pointerEvents: (this.state.control_action=='control')?'none':''}}></path>
+                        <path stroke={s_color} fill='transparent' d={curve} strokeWidth={1} style={{pointerEvents: (this.state.control_action=='control')?'none':''}}></path>
+                    </g>
+                    )
+                    
+                })
+            }
+        }
+
+    }
+
+    renderPastPoints(){
+        var palette_el = document.getElementById('prompt_palette_board')
+
+        if(palette_el==null){
+            return
+        }
+
+        var palette_width = palette_el.getBoundingClientRect().width
+        var palette_height = palette_el.getBoundingClientRect().height
+
+        if(this.props.mother_state.stroke_id!=undefined){
+            if(this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id]!=undefined){
+                var AI_stroke_tables = this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id]
+                return AI_stroke_tables.map((AI_stroke_list, idx)=>{
+                    return AI_stroke_list.map((intermediate_id, idx2)=>{
+                        var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
+                        if(cur_obj.selected_prompt==undefined){
+                            console.log(cur_obj)
+                            return
+                        }
+                        var width = cur_obj.selected_prompt.position[0]*palette_width
+                        var height = cur_obj.selected_prompt.position[1]*palette_height
+
+                        if(idx2>0){
+                            var prev_intermediate_id = AI_stroke_list[idx2-1]
+                            var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
+                            if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                // change the position to consider rotation
+                                var samepos = 0
+                                for(var ti=0; ti<idx; ti++){
+                                    if(ti==idx){
+                                        continue
+                                    }
+                                    for(var li in AI_stroke_tables[ti]){
+                                        var comp_obj = this.props.mother_state.AI_intermediate_objs[AI_stroke_tables[ti][li]]
+                                        if(comp_obj.selected_prompt.position[0]==cur_obj.selected_prompt.position[0] && comp_obj.selected_prompt.position[1]==cur_obj.selected_prompt.position[1]){
+                                            samepos = samepos+1
+                                        }
+                                        break
+                                    }
+                                }
+
+                                var r = 6+samepos*6
+                                var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
+                                width = width + r*Math.cos(2*Math.PI*rad_ratio) + r*Math.sin(2*Math.PI*rad_ratio)
+                                height = height -r*Math.sin(2*Math.PI*rad_ratio) + r*Math.cos(2*Math.PI*rad_ratio)
+                            }
+                        }
+
+                        var colors = []
+                        var weights = []
+                        var directional_prompts = cur_obj.directional_prompts
+                        for(var i in directional_prompts){
+                            var dir_prompt = directional_prompts[i]
+                            if(dir_prompt.value<0){
+                                colors.push(this.interpolateColors([dir_prompt.colorA, '#333333'], [(-parseFloat(dir_prompt.value))/100, (parseFloat(dir_prompt.value)+100)/100]))
+                            }else{
+                                colors.push(this.interpolateColors([dir_prompt.colorB, '#333333'], [(parseFloat(dir_prompt.value))/100, (100-parseFloat(dir_prompt.value))/100]))
+                            }
+                            weights.push(1/directional_prompts.length)
+                        }
+                        var f_color 
+                        if(colors.length>0){
+                            f_color= this.interpolateColors(colors, weights)
+                        }else{
+                            f_color = '#333333'
+                        }  
+
+                        var s_color = 'white'
+
+                        if(this.props.mother_state.gen_tick+1==cur_obj.gen_tick && idx==this.props.mother_state.AI_stroke_id){
+                            s_color = '#32cf7d'
+                        }
+
+                        return (<g style={{pointerEvents: (this.state.control_action=='control')?'none':''}}> 
+                            <circle style={{pointerEvents: (this.state.control_action=='control')?'none':''}} cx={width} cy={height} stroke={s_color} fill={f_color} r='5' onPointerDown={this.selectPastPoint.bind(this, idx, idx2)}></circle>
+                        </g>)
+                    })
+                })
+            }
+        }
+    }
+
+    selectPastPoint(AI_stroke_id, path_idx, e){
+        if(this.props.mother_state.gen_start){
+            return
+        }
+        e.stopPropagation()
+        var obj_id = this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id][AI_stroke_id][path_idx]
+        var obj = this.props.mother_state.AI_intermediate_objs[obj_id]
+        console.log(obj)
+
+        this.props.mother_state.AI_stroke_id = AI_stroke_id
+        
+        
+        this.props.mother_state.current_layer = obj.current_layer
+        this.props.mother_state.layers[obj.current_layer] = JSON.parse(JSON.stringify(obj.layer))
+        var el = document.getElementById('sketchpad_canvas_'+obj.layer.layer_id)
+        var ctx = el.getContext('2d');
+        
+        var img = new Image();
+        img.src = obj.layer.image
+        var _this = this
+        img.onload = function(){
+            ctx.clearRect(0,0,_this.props.mother_state.pixelwidth,_this.props.mother_state.pixelheight);
+            ctx.drawImage(this, 0,0)
+        }
+
+        this.props.mother_state.gen_tick = path_idx
+        this.props.mother_state.guidance_scale = obj.guidance_scale
+        this.props.mother_state.gen_steps = obj.gen_steps
+        // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
+        this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+        this.props.mother_state.prompts = obj.prompts
+        this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+        this.props.mother_state.latents = obj.latents
+        this.props.mother_state.cutxmin = obj.cutxmin
+        this.props.mother_state.cutymin = obj.cutymin
+        this.props.mother_state.cutxmax = obj.cutxmax
+        this.props.mother_state.cutymax = obj.cutymax
+        this.props.mother_this.setState({})
     }
 
     
@@ -584,10 +839,10 @@ class PromptControllerPalette extends React.Component{
         <div style={{display:'flex', marginBottom: 5, justifyContent:'space-between'}}>
             <div>Prompt Palette</div>
             <div>
-            <div class="switch">
+            <div class="switch" style={{'opacity': (this.props.mother_state.gen_tick>=0)?0.5:1}}>
                 <label>
                 Edit
-                <input onChange={this.toggleFix.bind(this)} type="checkbox"/>
+                <input onChange={this.toggleFix.bind(this)} checked={this.props.mother_state.gen_tick>=0 || this.state.palette_fix} type="checkbox" disabled={this.state.gen_tick>=0}/>
                 <span class="lever"></span>
                 Fix
                 </label>
@@ -602,6 +857,8 @@ class PromptControllerPalette extends React.Component{
                 {this.renderMix2()}
                 {this.renderMix3()}
                 {this.renderPrompts()}
+                {this.renderPastPaths()}
+                {this.renderPastPoints()}
                 {this.renderSelector()}
 
             </svg>

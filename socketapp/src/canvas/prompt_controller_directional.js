@@ -1,6 +1,9 @@
 import React from 'react'
 
 class PromptControllerDirectional extends React.Component{
+    state = {
+        prompt_update_tick: false
+    }
 
     promptChange(type, idx, e){
         var cur_input = e.target.value
@@ -21,6 +24,33 @@ class PromptControllerDirectional extends React.Component{
     sliderChange(val, idx, e){
         this.props.mother_state.directional_prompts[idx].value =e.target.value
         this.props.mother_this.setState({}) 
+
+        if(this.state.prompt_update_tick == false){
+            var directional_prompts=[]
+            for(var i in this.props.mother_state.directional_prompts){
+                var prompt_set = this.props.mother_state.directional_prompts[i]
+                var nps = {
+                    promptA: prompt_set.promptA,
+                    promptB: prompt_set.promptB,
+                    value: prompt_set.value
+                }
+                directional_prompts.push(nps)
+            }
+
+            var send_data = {
+                'stroke_id': this.props.mother_state.stroke_id, 
+                'directional_prompts': directional_prompts, 
+                'directional_prompts_proto': JSON.parse(JSON.stringify(this.props.mother_state.directional_prompts)),
+            }
+
+            this.props.mother_this.AIDrawCanvas.current.socket.emit("directional_prompts_update", send_data)
+            var _this = this
+            this.setState({prompt_update_tick: true}, function(){
+                setTimeout(function(){
+                    _this.setState({prompt_update_tick: false})
+                }, 200)
+            })
+        }
     }
 
     changePromptType(type, idx){
@@ -84,7 +114,7 @@ class PromptControllerDirectional extends React.Component{
                         {!val.isBtext && <i class="fa fa-image" style={{fontSize:16}} ></i>}
                     </div>
                 </div>
-                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)}>
+                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.gen_start}>
                     X
                 </div>
             </div>)

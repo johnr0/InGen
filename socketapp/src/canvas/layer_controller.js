@@ -36,6 +36,9 @@ class LayerController extends Component{
 
 
     selectLayer(idx,e){
+        if(this.props.mother_state.gen_start){
+            return
+        }
         var ypos = e.pageY
         var _this = this
         var prev_current_layer_idx = this.props.mother_state.current_layer
@@ -88,6 +91,9 @@ class LayerController extends Component{
 
   
     deletelayer(){
+        if(this.props.mother_state.gen_start){
+            return
+        }
         this.undo_store()
 
         var layers = this.props.mother_state.layers
@@ -172,6 +178,9 @@ class LayerController extends Component{
     }
 
     addNewLayer(e){
+        if(this.props.mother_state.gen_start){
+            return
+        }
         e.stopPropagation()
        this.undo_store()
         var layers = this.props.mother_state.layers
@@ -296,6 +305,9 @@ class LayerController extends Component{
     }
 
     toggleHideLayer(){
+        if(this.props.mother_state.gen_start){
+            return
+        }
         this.undo_store()
         var current_layer = this.props.mother_state.current_layer
         var layers = this.props.mother_state.layers
@@ -335,7 +347,7 @@ class LayerController extends Component{
 
 
     render(){
-        return (<div onWheel={this.controllerWheel.bind(this)} className='controller layer_controller'>
+        return (<div onWheel={this.controllerWheel.bind(this)} className='controller layer_controller' style={{opacity:(this.props.mother_state.gen_start)?'0.5':'1'}}>
             <div id='sketchpad_layer_controller' className='layer_box' style={{position:'relative', overflowY:'auto', height: '250px'}} onPointerMove={this.layerMove.bind(this)} onPointerUp={this.layerDone.bind(this)}
             onDragOver={this.layerMove.bind(this)}
 

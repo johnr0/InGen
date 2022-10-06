@@ -5,7 +5,7 @@ import MainController from './main_controller'
 // import SketchpadUndo from './sketchpad_undo'
 import PromptController from './prompt_controller'
 import AIDrawCanvas from './AI_draw_canvas'
-import { rightArithShift } from 'mathjs'
+import { e, i, rightArithShift } from 'mathjs'
 import GenerationController from './generation_controller'
 
 
@@ -123,7 +123,7 @@ class Canvas extends React.Component {
             },
             {
                 _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'a glowing outerplanet tower made of diamonds with mint color sunset behind, high resolution, rendered with unreal4, 4k',
+                prompt: 'a glowing outerplanet tower made of diamonds with mint color sunset behind, high resolution, rendered with unreal4, 4k, trending in art station',
                 position: [0.8,0.9],
                 color: '#a9e1ee',
                 istext:true
@@ -167,6 +167,7 @@ class Canvas extends React.Component {
     }
 
     AIDrawCanvas = React.createRef()
+    PromptController = React.createRef()
     // TODO lasso tool - nonlasso-based resize
 
     componentDidUpdate(){
@@ -189,6 +190,7 @@ class Canvas extends React.Component {
         var _this = this
         document.addEventListener('keydown', function(e){
             e = e||window.event;
+            console.log(e.key)
             if(e.key=="z"){
                 if(_this.state.control_pressed){
                     if(_this.state.shift_pressed){
@@ -196,20 +198,23 @@ class Canvas extends React.Component {
                     }else{
                         _this.undo()
                     }
-                }
-                else if(_this.state.current_layer>=0){
-                    if(_this.state.layers[_this.state.current_layer].hide!=true){
-                        if(_this.state.action=='idle'&&_this.state.control_state!='move'){
-                            _this.setState({prev_shift_key: _this.state.control_state, control_state: 'move'})
-                        }
-                    }
                 }   
-            }else if(e.key=='x'){
-                _this.setState({multi_strokes:true})
+            }else if(e.key=='Control'){
+                
             }else if(e.key=='Shift'){
                 _this.setState({shift_pressed:true})
             }else if(e.key=='Meta'){
+               
                 _this.setState({control_pressed:true})
+            }else if(e.key=='Alt'){
+                _this.setState({multi_strokes:true})
+                // if(_this.state.current_layer>=0){
+                //     if(_this.state.layers[_this.state.current_layer].hide!=true){
+                //         if(_this.state.action=='idle'&&_this.state.control_state!='move'){
+                //             _this.setState({prev_shift_key: _this.state.control_state, control_state: 'move'})
+                //         }
+                //     }
+                // }
             }
         })
 
@@ -217,23 +222,27 @@ class Canvas extends React.Component {
 
         document.addEventListener('keyup', function(e){
             e = e||window.event;
-            if(e.key=="z"){
-                if(_this.state.current_layer>=0){
-                    if(_this.state.layers[_this.state.current_layer].hide!=true){
-                        _this.setState({control_state: _this.state.prev_shift_key, action: 'idle'})
-                    }
-                }
-            }else if(e.key=='x'){
+            if(e.key=="Alt"){
                 _this.setState({multi_strokes:false}, function(){
-                    if(this.state.current_layer==-1 || this.state.selected_prompt==undefined || this.state.stroke_id==undefined){
+                    if(_this.state.current_layer==-1 || _this.state.selected_prompt==undefined || _this.state.stroke_id==undefined){
                         return
                     }
-                    _this.AIDrawCanvas.current.initGen();
+                    _this.AIDrawCanvas.current.initGen2(0);
                 })
+
+                // if(_this.state.current_layer>=0){
+                //     if(_this.state.layers[_this.state.current_layer].hide!=true){
+                //         _this.setState({control_state: _this.state.prev_shift_key, action: 'idle'})
+                //     }
+                // }
+            }else if(e.key==''){
+                
             }else if(e.key=='Shift'){
                 _this.setState({shift_pressed:false})
             }else if(e.key=='Meta'){
                 _this.setState({control_pressed:false})
+
+                
             }
         })
     }
@@ -342,7 +351,6 @@ class Canvas extends React.Component {
 
     sketchPadMouseMoveInit(e){
         if(this.state.control_state=='move' && this.state.action=='idle'){
-            this.undo_store()
             this.moveBoardInit(e)
         }else if(this.state.control_state=='brush' && this.state.action=='idle'){
             this.undo_store()
@@ -374,6 +382,16 @@ class Canvas extends React.Component {
         }else if(this.state.control_state=='AI' && this.state.action=='size'){
             this.setState({action:'idle'})
         }
+    }
+
+    sketchPadContextMenu(e){
+        e.stopPropagation();
+        e.preventDefault()
+        if(this.state.action=='idle'){
+            console.log('move board')
+            this.moveBoardInit(e)
+        }
+        
     }
 
     isOutSideMovableArea(e){
@@ -422,7 +440,7 @@ class Canvas extends React.Component {
 
     sketchPadMouseMove(e){
         this.setState({cur_mouse_pos: [e.pageX, e.pageY]})
-        if((this.state.control_state=='move'||this.state.control_state=='move-layer') && this.state.action=='move_board'){
+        if(this.state.action=='move_board' ){
             this.moveMouse(e)
         }else if(this.state.control_state=='brush' && this.state.action=='brush'){
             this.brushMove(e)
@@ -451,7 +469,7 @@ class Canvas extends React.Component {
     sketchPadMouseMoveEnd(e){
         e.stopPropagation()
         console.log('eeeeeennnnnnndddd')
-        if((this.state.control_state=='move'||this.state.control_state=='move-layer') && this.state.action=='move_board'){
+        if(this.state.action=='move_board'){
             this.moveBoardEnd(e)
         }else if (this.state.control_state=='brush'&&this.state.action=='brush'){
             this.brushEnd(e)
@@ -592,10 +610,11 @@ class Canvas extends React.Component {
 
             }else if(undo_obj.type=='ai_gen'){
                 // TODO if generation is being done, stop it
-                
+                console.log(this.state.gen_tick, this.state.layer_img)
                 
                 if(this.state.gen_tick==0){
                     redo_obj = JSON.parse(JSON.stringify(undo_obj))
+                    redo_obj.AI_stroke_id = this.state.AI_stroke_id
                     this.state.stroke_id=undefined //undo_obj.stroke_id
                     this.state.AI_stroke_id = -1 // undo_obj.AI_stroke_id
                     this.state.layers[undo_obj._id] = undo_obj.layer
@@ -609,19 +628,22 @@ class Canvas extends React.Component {
                         ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
                         ctx.drawImage(this, 0,0)
                     }
+                    
+                    // this.state.prompts = JSON.parse(JSON.stringify(undo_obj.prompts))
                     this.state.gen_tick = -1
                     this.state.lasso = undo_obj.lasso
                     this.state.lasso_img = undo_obj.lasso_img
                     this.state.nonlasso_ret = undo_obj.nonlasso_ret
                     this.state.unlassoed_canvas = undo_obj.unlassoed_canvas
                     this.state.lassoed_canvas = undo_obj.lassoed_canvas
+                    
 
                 }else{
                     this.state.undo_states.push(undo_obj)
                     var gen_tick = this.state.gen_tick
 
                     if(gen_tick==-1){
-                        gen_tick = this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length-1
+                        gen_tick = this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length
                         // do undo store
                         this.state.stroke_id = undo_obj.stroke_id
                         this.state.AI_stroke_id = undo_obj.AI_stroke_id
@@ -629,6 +651,7 @@ class Canvas extends React.Component {
                         this.state.area_img = undo_obj.area_img
                         this.state.seed = undo_obj.seed
                         this.state.overcoat_ratio = undo_obj.overcoat_ratio
+                        
                         // this.state.cutxmin = undo_obj.cutxmin
                         // this.state.cutymin = undo_obj.cutymin
                         // this.state.cutxmax = undo_obj.cutxmax
@@ -639,9 +662,9 @@ class Canvas extends React.Component {
                     }
 
 
-                    var obj_id = this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id][gen_tick-1]
+                    var obj_id = this.state.AI_stroke_tables[undo_obj.stroke_id][this.state.AI_stroke_id][gen_tick-1]
                     var obj = this.state.AI_intermediate_objs[obj_id]
-                    console.log(obj_id, obj)
+                    console.log(gen_tick, obj_id, obj, Object.keys(this.state.AI_intermediate_objs).length)
 
                     this.state.current_layer = obj.current_layer
                     this.state.layers[obj.current_layer] = JSON.parse(JSON.stringify(obj.layer))
@@ -659,15 +682,20 @@ class Canvas extends React.Component {
                     this.state.gen_tick = gen_tick-1
                     this.state.guidance_scale = obj.guidance_scale
                     this.state.gen_steps = obj.gen_steps
-                    this.state.selected_prompt = obj.selected_prompt
-                    this.state.directional_prompts = obj.directional_prompts
-                    this.state.prompts = obj.prompts
-                    this.state.prompt_groups = obj.prompt_groups
+                    // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
+                    this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+                    this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
+                    this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
                     this.state.latents = obj.latents
                     this.state.cutxmin = obj.cutxmin
                     this.state.cutymin = obj.cutymin
                     this.state.cutxmax = obj.cutxmax
                     this.state.cutymax = obj.cutymax
+
+                    if(this.state.gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length-1){
+                        this.PromptController.current.Palette.current.draw3DMix()
+                        this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
+                    }
 
                     skip_redo = true
 
@@ -765,7 +793,7 @@ class Canvas extends React.Component {
 
                     var gen_tick = this.state.gen_tick
 
-                    var obj_id = this.state.AI_stroke_tables[last_undo_obj.stroke_id][last_undo_obj.AI_stroke_id][gen_tick+1]
+                    var obj_id = this.state.AI_stroke_tables[last_undo_obj.stroke_id][this.state.AI_stroke_id][gen_tick+1]
                     var obj = this.state.AI_intermediate_objs[obj_id]
                     console.log(obj_id, obj)
 
@@ -785,9 +813,9 @@ class Canvas extends React.Component {
                     this.state.gen_tick = gen_tick+1
                     this.state.guidance_scale = obj.guidance_scale
                     this.state.gen_steps = obj.gen_steps
-                    this.state.selected_prompt = obj.selected_prompt
-                    this.state.directional_prompts = obj.directional_prompts
-                    this.state.prompts = obj.prompts
+                    // this.state.selected_prompt = obj.selected_prompt
+                    this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+                    this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
                     this.state.prompt_groups = obj.prompt_groups
                     this.state.latents = obj.latents
                     this.state.cutxmin = obj.cutxmin
@@ -795,7 +823,7 @@ class Canvas extends React.Component {
                     this.state.cutxmax = obj.cutxmax
                     this.state.cutymax = obj.cutymax
                     this.state.stroke_id = last_undo_obj.stroke_id
-                    this.state.AI_stroke_id = last_undo_obj.AI_stroke_id
+                    // this.state.AI_stroke_id = last_undo_obj.AI_stroke_id
                     this.setState({})
                     return
                 }
@@ -803,7 +831,9 @@ class Canvas extends React.Component {
                     console.log('transition')
                     this.state.gen_tick = -1
                     this.state.stroke_id = undefined
+                    this.state.undo_states[this.state.undo_states.length-1].AI_stroke_id = this.state.AI_stroke_id
                     this.state.AI_stroke_id = -1
+                    
                     this.setState({})
                     return
                 }
@@ -2453,7 +2483,7 @@ class Canvas extends React.Component {
             // onPointerOut={this.moveBoardEnd.bind(this)}
             onPointerUp={this.sketchPadMouseMoveEnd.bind(this)} 
             onPointerMove={this.sketchPadMouseMove.bind(this)}> 
-            <div className={'boardrender'} onPointerDown={this.sketchPadMouseMoveInit.bind(this)} onPointerUp={this.sketchPadMouseMoveEnd.bind(this)} 
+            <div className={'boardrender'} onPointerDown={this.sketchPadMouseMoveInit.bind(this)} onPointerUp={this.sketchPadMouseMoveEnd.bind(this)} onContextMenu={this.sketchPadContextMenu.bind(this)}
                 // onPointerOut={this.sketchPadMouseMoveOut.bind(this)}
                 // onPointerOut={this.props.board_this.setSketchpadPosition.bind(this.props.board_this, -1, -1)}
 
@@ -2480,7 +2510,7 @@ class Canvas extends React.Component {
                 
             </div>
             <div style={{visibility: (this.state.control_state!='AI')?"hidden":"", pointerEvents: (this.state.control_state!='AI')?"none":""}}>
-                <PromptController mother_state={this.state} mother_this={this}></PromptController>
+                <PromptController ref={this.PromptController} mother_state={this.state} mother_this={this}></PromptController>
             </div>
             <div style={{visibility: (this.state.control_state!='AI')?"hidden":"", pointerEvents: (this.state.control_state!='AI')?"none":""}}>
                 <GenerationController mother_state={this.state} mother_this={this}></GenerationController>

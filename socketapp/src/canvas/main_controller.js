@@ -4,6 +4,9 @@ import EraserController from './eraser_controller'
 
 class MainController extends Component{
     changeControlState(control_state){
+        if(this.props.mother_state.gen_start){
+            return
+        }
         if(this.props.mother_state.current_layer!=-1){
             var layer = this.props.mother_state.layers[this.props.mother_state.current_layer]
             // var layer = this.props.mother_state.layer_dict[layer_id]
@@ -45,7 +48,7 @@ class MainController extends Component{
             }
         }
         
-        return (<div className="controller main_controller">
+        return (<div className="controller main_controller" style={{opacity:(this.props.mother_state.gen_start)?'0.5':'1'}}>
             <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='move')?'white':basecolor}}
                 onClick={this.changeControlState.bind(this, 'move')}>
                 <i className='controller_button_icon fa fa-hand-paper'></i>

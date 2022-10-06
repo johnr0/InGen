@@ -49,8 +49,6 @@ class PromptControllerList extends React.Component{
 
             })
         }
-        
-
     }
 
     addNewPrompt(idx, e){
