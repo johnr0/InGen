@@ -48,6 +48,10 @@ class PromptBrushConfig extends React.Component{
         })
     }
 
+    copytest(mode){
+        this.props.mother_this.setState({AI_brush_mode:mode})
+    }
+
     render(){
 
         var pixellength = (this.props.mother_state.pixelheight < this.props.mother_state.pixelwidth)?this.props.mother_state.pixelheight:this.props.mother_state.pixelwidth
@@ -64,18 +68,27 @@ class PromptBrushConfig extends React.Component{
                             <div className={'btn'} style={{height:22, lineHeight:'22px'}} onPointerDown={this.sizeOn.bind(this)}>Size</div>
                         </div>
                     </div>
-                    <div style={{display:'table', height:'100%'}}>
+                    <div style={{display:'table', height:'calc(100% - 22px)', width:180}}>
                         
-                        <div className='btn' style={{height:'100%', display:'table-cell'}} onPointerDown={this.multiStrokeOn.bind(this)} onPointerUp={this.multiStrokeOff.bind(this)}>
-                        <div>Multi Stroke (X)</div> 
+                        <div className='btn' style={{height:'100%', width:'50%', display:'table-cell', lineHeight:'1rem'}} onPointerDown={this.multiStrokeOn.bind(this)} onPointerUp={this.multiStrokeOff.bind(this)}>
+                        <div>Multi Strokes</div> 
                         </div>
+                        <div style={{display:'flex', flexDirection:'column'}}>
+                            <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='draw')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id==undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'draw')}>
+                                <div>Draw</div> 
+                            </div>
+                            <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='erase')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id!=undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'erase')}>
+                                <div>Erase</div> 
+                            </div>
+                        </div>
+                        
                     </div>
                 </div>
 
                 <div style={{marginLeft: 5, flexGrow:1, overflowY:'auto', overflowX: 'hidden'}}>
                         <div style={{display:'flex', justifyContent:'space-between'}}>
                             <div>
-                                <div>Guidance Scale:</div> 
+                                <div>Guide Scale:</div> 
                                 <div>Single stroke:</div> 
                                 <div>Steps:</div> 
                                 <div>Overcoat:</div> 

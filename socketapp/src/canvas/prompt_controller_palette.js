@@ -618,6 +618,9 @@ class PromptControllerPalette extends React.Component{
                     for(var i in AI_stroke_list){
                         var intermediate_id = AI_stroke_list[i]
                         var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
+                        if(cur_obj==undefined){
+                            return
+                        }
                         if(cur_obj.selected_prompt==undefined){
                             console.log(cur_obj)
                             return
@@ -628,6 +631,9 @@ class PromptControllerPalette extends React.Component{
                         if(i>0){
                             var prev_intermediate_id = AI_stroke_list[i-1]
                             var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
+                            if(prev_obj==undefined){
+                                return 
+                            }
                             if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
                                 // change the position to consider rotation
                                 var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
@@ -678,6 +684,9 @@ class PromptControllerPalette extends React.Component{
                 return AI_stroke_tables.map((AI_stroke_list, idx)=>{
                     return AI_stroke_list.map((intermediate_id, idx2)=>{
                         var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
+                        if(cur_obj==undefined){
+                            return
+                        }
                         if(cur_obj.selected_prompt==undefined){
                             console.log(cur_obj)
                             return
@@ -688,6 +697,9 @@ class PromptControllerPalette extends React.Component{
                         if(idx2>0){
                             var prev_intermediate_id = AI_stroke_list[idx2-1]
                             var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
+                            if(prev_obj==undefined){
+                                return 
+                            }
                             if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
                                 // change the position to consider rotation
                                 var samepos = 0

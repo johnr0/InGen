@@ -153,6 +153,7 @@ class Canvas extends React.Component {
                 value: 0,
             }
         ],
+        AI_brush_mode: 'draw',
         AI_brush_size: 100,
         selected_prompt: undefined,
         guidance_scale: 7,
@@ -163,6 +164,7 @@ class Canvas extends React.Component {
         gen_tick: -1,
         ratioData: {},
         AI_stroke_tables: {},
+        AI_stroke_id: -1, 
         AI_intermediate_objs: {}
     }
 
@@ -227,7 +229,12 @@ class Canvas extends React.Component {
                     if(_this.state.current_layer==-1 || _this.state.selected_prompt==undefined || _this.state.stroke_id==undefined){
                         return
                     }
-                    _this.AIDrawCanvas.current.initGen2(0);
+                    if(_this.state.AI_brush_mode=='draw'){
+                        _this.AIDrawCanvas.current.initGen2(0);
+                    }else if(_this.state.AI_brush_mode=='erase'){
+                        _this.AIDrawCanvas.current.genRemovePart();
+                    }
+                    
                 })
 
                 // if(_this.state.current_layer>=0){
@@ -350,7 +357,8 @@ class Canvas extends React.Component {
     }
 
     sketchPadMouseMoveInit(e){
-        if(this.state.control_state=='move' && this.state.action=='idle'){
+        console.log(e.button)
+        if((this.state.control_state=='move' || e.button==1) && this.state.action=='idle'){
             this.moveBoardInit(e)
         }else if(this.state.control_state=='brush' && this.state.action=='idle'){
             this.undo_store()
@@ -387,10 +395,6 @@ class Canvas extends React.Component {
     sketchPadContextMenu(e){
         e.stopPropagation();
         e.preventDefault()
-        if(this.state.action=='idle'){
-            console.log('move board')
-            this.moveBoardInit(e)
-        }
         
     }
 
@@ -609,6 +613,7 @@ class Canvas extends React.Component {
                 this.state.current_layer = undo_obj.current_layer
 
             }else if(undo_obj.type=='ai_gen'){
+                console.log(this.state.stroke_id)
                 // TODO if generation is being done, stop it
                 console.log(this.state.gen_tick, this.state.layer_img)
                 

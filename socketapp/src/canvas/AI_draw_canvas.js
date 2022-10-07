@@ -17,7 +17,7 @@ class AIDrawCanvas extends React.Component{
         this.props.mother_this.setState({})
 
         // var sensorEndpoint = "http://localhost:5001"
-        this.socket = io('http://647f-34-87-59-81.ngrok.io/', {
+        this.socket = io('http://0812-34-73-245-42.ngrok.io/', {
             reconnection: true,
             maxHttpBufferSize: 1e8,
             // transports: ['websocket'],
@@ -46,7 +46,7 @@ class AIDrawCanvas extends React.Component{
                     var ctx = canvas.getContext('2d')
                     console.log(_this.props.mother_state.gen_tick)
                     this.props.mother_this.setState({latents: message.latents, gen_tick:message['gen_tick']}, function(){
-                        console.log(message.data)
+                        // console.log(message.data)
                         var img = new Image;
                         img.onload = function(){
                             ctx.drawImage(img, _this.props.mother_state.cutxmin, _this.props.mother_state.cutymin)
@@ -162,6 +162,9 @@ class AIDrawCanvas extends React.Component{
     }
 
     AIbrushInit_auto(e){
+        if(this.props.mother_state.stroke_id!=undefined && this.props.mother_state.AI_brush_mode=='draw'){
+            return
+        }
         var brush_canvas = document.createElement('canvas')
         brush_canvas.width = this.props.mother_state.AI_brush_size
         brush_canvas.height = this.props.mother_state.AI_brush_size
@@ -204,8 +207,12 @@ class AIDrawCanvas extends React.Component{
         }
         // move lasso image to context
         ctx.drawImage(brush_pre_canvas, 0, 0)
-        var stroke_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-        this.props.mother_this.setState({action:'AI_brush', stroke_id: stroke_id, brush_cur:this.props.mother_this.getCurrentMouseOnBoard(e), AI_cur_colored_brush_img: cur_colored_brush_img, AI_brush_pre_canvas:brush_pre_canvas, AI_origin_image: cur_image})
+
+        if(this.props.mother_state.AI_brush_mode=='draw'){
+            this.props.mother_state.stroke_id= Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        }        
+       
+        this.props.mother_this.setState({action:'AI_brush', brush_cur:this.props.mother_this.getCurrentMouseOnBoard(e), AI_cur_colored_brush_img: cur_colored_brush_img, AI_brush_pre_canvas:brush_pre_canvas, AI_origin_image: cur_image})
     }
 
     AIbrushMove_auto(e){
@@ -442,8 +449,10 @@ class AIDrawCanvas extends React.Component{
     }
 
     AIbrushEnd(e){
-        if(this.props.mother_state.multi_strokes==false){
+        if(this.props.mother_state.multi_strokes==false && this.props.mother_state.AI_brush_mode=='draw'){
             this.initGen2(0)
+        }else if(this.props.mother_state.multi_strokes==false && this.props.mother_state.AI_brush_mode=='erase'){
+            this.genRemovePart()
         }
         
 
@@ -538,6 +547,194 @@ class AIDrawCanvas extends React.Component{
         
 
 
+    }
+
+    genRemovePart(){
+        console.log('gen remove part', this.props.mother_state.stroke_id)
+        if(this.props.mother_state.stroke_id==undefined){
+            return
+        }
+        var _this = this
+        var el_area = document.getElementById('AI_area_canvas')
+        var ctx_area = el_area.getContext('2d');
+
+        var el_old_area = document.createElement('canvas')
+        var ctx_old_area = el_old_area.getContext('2d')
+
+        
+
+        var cutxmax = this.props.mother_state.cutxmax
+        var cutymax = this.props.mother_state.cutymax
+        var cutxmin = this.props.mother_state.cutxmin
+        var cutymin = this.props.mother_state.cutymin
+
+        el_old_area.width = this.props.mother_state.pixelwidth
+        el_old_area.height = this.props.mother_state.pixelheight
+
+        
+
+        var old_img = new Image;
+        old_img.src = this.props.mother_state.area_img
+        console.log(old_img.src)
+        old_img.onload = function(){
+            ctx_old_area.drawImage(old_img, cutxmin, cutymin)
+            var oldData = ctx_old_area.getImageData(0,0,el_old_area.width, el_old_area.height)
+            var newData = ctx_area.getImageData(0,0,el_area.width, el_area.height)
+
+            for(var i=0; i<oldData.data.length; i+=4){
+                if(newData.data[i+3]!=0){
+                    oldData.data[i+3]=0
+                }
+            }
+            ctx_old_area.putImageData(oldData, 0, 0)
+            console.log(el_old_area.toDataURL())
+
+
+            var new_stroke_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+            var new_AI_stroke_id = _this.props.mother_state.AI_stroke_id
+            console.log(new_stroke_id)
+
+            var old_AI_stroke_table = _this.props.mother_state.AI_stroke_tables[_this.props.mother_state.stroke_id]
+            var new_AI_stroke_table = []
+            var new_undo_obj = JSON.parse(JSON.stringify(_this.props.mother_state.undo_states[_this.props.mother_state.undo_states.length-1]))
+            console.log(new_undo_obj)
+
+            var init_img = new Image;
+            init_img.src = new_undo_obj.layer.image
+            init_img.onload = function(){
+
+                for(var cur_AI_stroke_id in old_AI_stroke_table){
+                    new_AI_stroke_table.push([])
+                    for(var obj_id_idx in old_AI_stroke_table[cur_AI_stroke_id]){
+                        new_AI_stroke_table[cur_AI_stroke_id].push(undefined)
+                    }
+                    console.log(new_AI_stroke_table[cur_AI_stroke_id].length)
+                    for(var obj_id_idx in old_AI_stroke_table[cur_AI_stroke_id]){
+                        var obj_id = old_AI_stroke_table[cur_AI_stroke_id][obj_id_idx]
+                        var new_obj_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+                        var new_obj = JSON.parse(JSON.stringify(_this.props.mother_state.AI_intermediate_objs[obj_id]))
+                        
+                        console.log(new_obj.gen_tick)
+                        // do some editing on new_obj here
+                        new_obj['stroke_id'] = new_stroke_id
+                        
+                        // change layer
+                        
+                        var obj_img = new Image;
+                        obj_img.src = new_obj.layer.image
+                        obj_img.new_obj = new_obj
+                        obj_img.cur_AI_stroke_id = cur_AI_stroke_id
+                        obj_img.obj_id_idx = obj_id_idx
+                        obj_img.new_obj_id = new_obj_id
+                        // obj_img.im = obj_img
+                        // console.log(new_obj.layer.image)
+                        obj_img.onload = function(){
+                            // console.log(this.src)
+                            var new_obj_c = JSON.parse(JSON.stringify(this.new_obj))
+                            var el_obj_area = document.createElement('canvas')
+                            el_obj_area.width = _this.props.mother_state.pixelwidth
+                            el_obj_area.height = _this.props.mother_state.pixelheight
+                            var ctx_obj_area = el_obj_area.getContext('2d')
+                            ctx_obj_area.drawImage(this, 0, 0)
+                            // console.log(el_obj_area.toDataURL())
+                            var objData = ctx_obj_area.getImageData(0,0,el_obj_area.width, el_obj_area.height)
+                            for(var i=0; i<objData.data.length; i+=4){
+                                if(oldData.data[i+3]==0){
+                                    objData.data[i+3]=0
+                                }
+                            }
+                            ctx_obj_area.putImageData(objData, 0, 0)
+                            var el_update_area = document.createElement('canvas')
+                            var ctx_update_area = el_update_area.getContext('2d')
+                            el_update_area.width = _this.props.mother_state.pixelwidth
+                            el_update_area.height = _this.props.mother_state.pixelheight
+                            ctx_update_area.drawImage(init_img, 0, 0)
+                            ctx_update_area.drawImage(el_obj_area, 0, 0)
+
+                            // change
+                            console.log(new_obj_c.gen_tick)
+                            new_obj_c.layer.image = el_update_area.toDataURL()
+                            new_obj_c.area_img = el_old_area.toDataURL()
+                            
+                            _this.props.mother_state.AI_intermediate_objs[this.new_obj_id] = new_obj_c
+                            new_AI_stroke_table[this.cur_AI_stroke_id][this.obj_id_idx] = this.new_obj_id
+                            // new_AI_stroke_table[this.cur_AI_stroke_id].push(this.new_obj_id)
+
+                            if(new_obj_c.gen_tick==_this.props.mother_state.gen_tick && this.cur_AI_stroke_id==_this.props.mother_state.AI_stroke_id){
+                                // change the current view
+                                console.log('is it gone through?', el_update_area.toDataURL())
+                                var canvas = document.getElementById('sketchpad_canvas_'+_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id)
+                                var ctx = canvas.getContext('2d')
+                                ctx.clearRect(0,0,_this.props.mother_state.pixelwidth,_this.props.mother_state.pixelheight)
+                                ctx.drawImage(el_update_area, 0, 0)
+                                var layers = _this.props.mother_state.layers
+                                layers[_this.props.mother_state.current_layer].image = canvas.toDataURL()
+                            }
+                            
+                            console.log(_this.props.mother_state.AI_stroke_tables)
+                        }
+                        
+                    }
+                }
+                console.log(new_AI_stroke_table)
+                _this.props.mother_state.AI_stroke_tables[new_stroke_id] = new_AI_stroke_table
+                console.log(el_old_area.toDataURL())
+
+                var el_crop_area = document.createElement('canvas')
+                var ctx_crop_area = el_crop_area.getContext('2d')
+
+                el_crop_area.width = cutxmax-cutxmin+1
+                el_crop_area.height = cutymax-cutymin+1
+                console.log(cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1)
+
+                var promises = new Promise(function(resolve, reject){
+                    ctx_crop_area.drawImage(el_old_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
+                    resolve('done')
+                })
+                promises.then(function(value){
+                    _this.props.mother_state.area_img = el_crop_area.toDataURL()
+                    console.log(el_crop_area.toDataURL())
+                    new_undo_obj['area_img'] = el_crop_area.toDataURL()
+                }, function(error){
+
+                })
+                // current - change area_img
+                
+                // undo objs - change area_img
+
+                
+                new_undo_obj['stroke_id'] = new_stroke_id
+                new_undo_obj['new_AI_stroke_id'] = new_AI_stroke_id
+
+                
+                _this.props.mother_state.undo_states.push(new_undo_obj)
+                if(_this.props.mother_state.undo_states.length>2000){
+                    _this.props.mother_state.undo_states.shift();
+                }
+                for(var i in _this.props.mother_state.redo_states){
+                    if(_this.props.mother_state.redo_states[i]['type']=='ai_gen'){
+                        var stroke_id = _this.props.mother_state.redo_states[i]['stroke_id']
+                        for(var j in _this.props.mother_state.AI_intermediate_objs){
+                            if(_this.props.mother_state.AI_intermediate_objs[j]['stroke_id']==stroke_id){
+                                delete _this.props.mother_state.AI_intermediate_objs[j]
+                            }
+                        }
+                        delete _this.props.mother_state.AI_stroke_tables[stroke_id]
+                    }
+                } 
+    
+    
+                _this.props.mother_this.setState({action:'idle', stroke_id: new_stroke_id, AI_stroke_id:new_AI_stroke_id, redo_states:[]}, function(){
+                    ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
+                })
+
+            }
+
+            
+        }
+
+
+        
     }
 
     initGen2(gen_tick, single_stroke_ratio = undefined,regen=false){
