@@ -619,31 +619,68 @@ class PromptControllerPalette extends React.Component{
                         var intermediate_id = AI_stroke_list[i]
                         var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
                         if(cur_obj==undefined){
-                            return
+                            continue
                         }
                         if(cur_obj.selected_prompt==undefined){
                             console.log(cur_obj)
-                            return
+                            continue
                         }
                         var width = cur_obj.selected_prompt.position[0]*palette_width
                         var height = cur_obj.selected_prompt.position[1]*palette_height
 
-                        if(i>0){
                             var prev_intermediate_id = AI_stroke_list[i-1]
                             var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
-                            if(prev_obj==undefined){
-                                return 
+                            var next_intermediate_id = AI_stroke_list[i+1]
+                            var next_obj = this.props.mother_state.AI_intermediate_objs[next_intermediate_id]
+
+                            var pass = true
+                            if(prev_obj!=undefined){ 
+                                if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                    pass= false
+                                }
                             }
-                            if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
-                                // change the position to consider rotation
-                                var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
-                                width = width + 6*Math.cos(2*Math.PI*rad_ratio) + 6*Math.sin(2*Math.PI*rad_ratio)
-                                height = height -6*Math.sin(2*Math.PI*rad_ratio) + 6*Math.cos(2*Math.PI*rad_ratio)
+
+                            if(next_obj!=undefined){ 
+                                if(next_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && next_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                    pass= false
+                                }
                             }
+                            var samepos = 0
+                            var counter = 0
+                            for(var ti=0; ti<idx; ti++){
+                                if(ti==idx){
+                                    continue
+                                }
+                                
+                                for(var li in AI_stroke_tables[ti]){
+                                    var comp_obj = this.props.mother_state.AI_intermediate_objs[AI_stroke_tables[ti][li]]
+                                    if(comp_obj.selected_prompt.position[0]==cur_obj.selected_prompt.position[0] && comp_obj.selected_prompt.position[1]==cur_obj.selected_prompt.position[1]){
+                                        counter = counter + 1
+                                        if(counter>=2){
+                                            samepos = samepos+1
+                                            break
+                                        }
+                                        
+                                    }
+                                    
+                                }
+                            }
+                            var r = 0
+                            
+                            if(samepos>0){
+                                pass=false
+                            }
+                            if(pass==false){
+                                r = 6+samepos*6
+                            }
+                            var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
+                            width = width + r*Math.cos(2*Math.PI*rad_ratio) + r*Math.sin(2*Math.PI*rad_ratio)
+                            height = height -r*Math.sin(2*Math.PI*rad_ratio) + r*Math.cos(2*Math.PI*rad_ratio)
+                            points.push([width, height])
                         }
-                        points.push([width, height])
                         
-                    }
+                        
+                    
                     if(points.length<3){
                         return
                     }
@@ -684,6 +721,7 @@ class PromptControllerPalette extends React.Component{
                 return AI_stroke_tables.map((AI_stroke_list, idx)=>{
                     return AI_stroke_list.map((intermediate_id, idx2)=>{
                         var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
+                        
                         if(cur_obj==undefined){
                             return
                         }
@@ -694,34 +732,62 @@ class PromptControllerPalette extends React.Component{
                         var width = cur_obj.selected_prompt.position[0]*palette_width
                         var height = cur_obj.selected_prompt.position[1]*palette_height
 
-                        if(idx2>0){
-                            var prev_intermediate_id = AI_stroke_list[idx2-1]
-                            var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
-                            if(prev_obj==undefined){
-                                return 
-                            }
-                            if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
-                                // change the position to consider rotation
-                                var samepos = 0
-                                for(var ti=0; ti<idx; ti++){
-                                    if(ti==idx){
-                                        continue
-                                    }
-                                    for(var li in AI_stroke_tables[ti]){
-                                        var comp_obj = this.props.mother_state.AI_intermediate_objs[AI_stroke_tables[ti][li]]
-                                        if(comp_obj.selected_prompt.position[0]==cur_obj.selected_prompt.position[0] && comp_obj.selected_prompt.position[1]==cur_obj.selected_prompt.position[1]){
-                                            samepos = samepos+1
-                                        }
-                                        break
-                                    }
-                                }
+                        var prev_intermediate_id = AI_stroke_list[idx2-1]
+                        var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
+                        var next_intermediate_id = AI_stroke_list[idx2+1]
+                        var next_obj = this.props.mother_state.AI_intermediate_objs[next_intermediate_id]
 
-                                var r = 6+samepos*6
-                                var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
-                                width = width + r*Math.cos(2*Math.PI*rad_ratio) + r*Math.sin(2*Math.PI*rad_ratio)
-                                height = height -r*Math.sin(2*Math.PI*rad_ratio) + r*Math.cos(2*Math.PI*rad_ratio)
+                        var pass = true
+                        if(prev_obj!=undefined){ 
+                            if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                pass= false
                             }
                         }
+
+                        if(next_obj!=undefined){ 
+                            if(next_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && next_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                pass= false
+                            }
+                        }
+
+                        // change the position to consider rotation
+                        var samepos = 0
+                        var counter = 0
+                        for(var ti=0; ti<idx; ti++){
+                            if(ti==idx){
+                                continue
+                            }
+                            
+                            for(var li in AI_stroke_tables[ti]){
+                                var comp_obj = this.props.mother_state.AI_intermediate_objs[AI_stroke_tables[ti][li]]
+                                if(comp_obj.selected_prompt.position[0]==cur_obj.selected_prompt.position[0] && comp_obj.selected_prompt.position[1]==cur_obj.selected_prompt.position[1]){
+                                    counter = counter + 1
+                                    if(counter>=2){
+                                        samepos = samepos+1
+                                        break
+                                    }
+                                    
+                                }
+                                
+                            }
+                        }
+                        var r = 0
+                        
+                        if(samepos>0){
+                            pass=false
+                        }
+                        if(pass==false){
+                            r = 6+samepos*6
+                        }
+                        var rad_ratio = cur_obj.gen_tick/this.props.mother_state.gen_steps
+                        width = width + r*Math.cos(2*Math.PI*rad_ratio) + r*Math.sin(2*Math.PI*rad_ratio)
+                        height = height -r*Math.sin(2*Math.PI*rad_ratio) + r*Math.cos(2*Math.PI*rad_ratio)
+
+                            
+
+                            
+                            
+                        
 
                         var colors = []
                         var weights = []
@@ -748,7 +814,7 @@ class PromptControllerPalette extends React.Component{
                             s_color = '#32cf7d'
                         }
 
-                        return (<g style={{pointerEvents: (this.state.control_action=='control')?'none':''}}> 
+                        return (<g key={'pointpath_'+idx+'_'+idx2} style={{pointerEvents: (this.state.control_action=='control')?'none':''}}> 
                             <circle style={{pointerEvents: (this.state.control_action=='control')?'none':''}} cx={width} cy={height} stroke={s_color} fill={f_color} r='5' onPointerDown={this.selectPastPoint.bind(this, idx, idx2)}></circle>
                         </g>)
                     })
@@ -782,7 +848,7 @@ class PromptControllerPalette extends React.Component{
             ctx.drawImage(this, 0,0)
         }
 
-        this.props.mother_state.gen_tick = path_idx
+        this.props.mother_state.gen_tick = obj.gen_tick-1
         this.props.mother_state.guidance_scale = obj.guidance_scale
         this.props.mother_state.gen_steps = obj.gen_steps
         // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
