@@ -1,12 +1,6 @@
 import React, {Component} from 'react'
 
 class BrushController extends Component{
-    componentDidMount(){
-        console.log(this.props.mother_state.brush_img)
-        var canvas= document.getElementById('brush_size_canvas')
-        var ctx = canvas.getContext('2d')
-        ctx.drawImage(this.props.mother_state.brush_img, 0, 0)
-    }
 
     setColor(e){
         this.props.mother_this.setState({brush_color: e.target.value})
@@ -27,7 +21,8 @@ class BrushController extends Component{
     }
 
     render(){
-        var pixellength = (this.props.mother_state.pixelheight < this.props.mother_state.pixelwidth)?this.props.mother_state.pixelheight:this.props.mother_state.pixelwidth
+        var pixelwidth = this.props.mother_state.pixelwidth
+        var pixelheight = this.props.mother_state.pixelheight
         return (<div className="controller brush_controller">
             <div className='controller_button'>
                 <input type='color' value={this.props.mother_state.brush_color} onChange={this.setColor.bind(this)}
@@ -47,13 +42,14 @@ class BrushController extends Component{
                 <input value={this.props.mother_state.brush_size} type='range' min='1' max='200' orient='vertical' onChange={this.change_brush_size.bind(this)}></input>
             </div>
             <div style={{width:'90%', height: '100%', display: 'inline-block', overflow:'hidden', position:'relative'}}>
-                <canvas id='brush_size_canvas' width={this.props.mother_state.brush_img.width} height={this.props.mother_state.brush_img.height} 
-                style={{width: this.props.mother_state.brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom, 
-                height: this.props.mother_state.brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom,
-                position:'absolute', left: 165.6/2-this.props.mother_state.brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom/2,
-                top: 184/2-this.props.mother_state.brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom/2,
+            <div id='brush_size_canvas' width={this.props.mother_state.brush_img.width} height={this.props.mother_state.brush_img.height} 
+                style={{width: this.props.mother_state.erase_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom, 
+                height: this.props.mother_state.erase_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom,
+                position:'absolute', left: 165.6/2-this.props.mother_state.erase_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom/2,
+                top: 184/2-this.props.mother_state.erase_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom/2,
+                borderRadius: '50%', border: 'solid 1px #333333'
                 }}
-                ></canvas>
+                ></div>
             </div>    
             </div>
 

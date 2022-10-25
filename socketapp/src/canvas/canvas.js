@@ -159,7 +159,7 @@ class Canvas extends React.Component {
         guidance_scale: 7,
         single_stroke_ratio: 100,
         gen_steps: 20,
-        overcoat_ratio: 50, 
+        overcoat_ratio: 70, 
         multi_strokes:false,
         gen_tick: -1,
         ratioData: {},
@@ -180,6 +180,19 @@ class Canvas extends React.Component {
         if(document.getElementById(this.state.boardname)!=undefined){
             this.setboardlength()
             window.addEventListener('resize', this.setboardlength.bind(this))
+        }
+
+        var checkerboard_el = document.getElementById('checkerboard')
+        var checkerboard_canvas = checkerboard_el.getContext('2d')
+        for(var i=0; i<this.state.pixelwidth; i+=10){
+            for(var j=0; j<this.state.pixelheight; j+=10){
+                if((i/10+j/10)%2==0){
+                    checkerboard_canvas.rect(i, j, 10, 10)
+                    checkerboard_canvas.fillStyle='#eeeeee'
+                    checkerboard_canvas.fill()
+                }
+                
+            }
         }
 
         var brush_img = new Image();
@@ -620,6 +633,8 @@ class Canvas extends React.Component {
                 if(this.state.gen_tick==0){
                     redo_obj = JSON.parse(JSON.stringify(undo_obj))
                     redo_obj.AI_stroke_id = this.state.AI_stroke_id
+                    redo_obj.prompt_groups = this.state.prompt_groups
+                    
                     this.state.stroke_id=undefined //undo_obj.stroke_id
                     this.state.AI_stroke_id = -1 // undo_obj.AI_stroke_id
                     this.state.layers[undo_obj._id] = undo_obj.layer
@@ -636,6 +651,7 @@ class Canvas extends React.Component {
                     
                     // this.state.prompts = JSON.parse(JSON.stringify(undo_obj.prompts))
                     this.state.gen_tick = -1
+                    this.state.last_img = undefined
                     this.state.lasso = undo_obj.lasso
                     this.state.lasso_img = undo_obj.lasso_img
                     this.state.nonlasso_ret = undo_obj.nonlasso_ret
@@ -653,9 +669,11 @@ class Canvas extends React.Component {
                         this.state.stroke_id = undo_obj.stroke_id
                         this.state.AI_stroke_id = undo_obj.AI_stroke_id
                         this.state.layer_img = undo_obj.layer_img
+                        this.state.last_img = undo_obj.last_img
                         this.state.area_img = undo_obj.area_img
                         this.state.seed = undo_obj.seed
                         this.state.overcoat_ratio = undo_obj.overcoat_ratio
+                        // this.state.prompt_groups = JSON.parse(JSON.stringify(undo_obj.prompt_groups))
                         
                         // this.state.cutxmin = undo_obj.cutxmin
                         // this.state.cutymin = undo_obj.cutymin
@@ -666,10 +684,12 @@ class Canvas extends React.Component {
 
                     }
 
-
                     var obj_id = this.state.AI_stroke_tables[undo_obj.stroke_id][this.state.AI_stroke_id][gen_tick-1]
                     var obj = this.state.AI_intermediate_objs[obj_id]
                     console.log(gen_tick, obj_id, obj, Object.keys(this.state.AI_intermediate_objs).length)
+                    if(obj==undefined){
+                        return
+                    }
 
                     this.state.current_layer = obj.current_layer
                     this.state.layers[obj.current_layer] = JSON.parse(JSON.stringify(obj.layer))
@@ -689,89 +709,38 @@ class Canvas extends React.Component {
                     this.state.gen_steps = obj.gen_steps
                     // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
                     this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
-                    this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
-                    this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+                    // this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
+                    for(var i in this.state.prompts){
+                        for(var j in obj.prompts){
+                            if(this.state.prompts[i]._id == obj.prompts[j]._id){
+                                this.state.prompts[i].prompt = obj.prompts[j].prompt
+                                continue
+                            }
+                        }
+                    }
+                    // this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+                    if(gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length){
+                        this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+                    }
+                    obj.prompt_groups = JSON.parse(JSON.stringify(this.state.prompt_groups))
+                    
+                    
                     this.state.latents = obj.latents
                     this.state.cutxmin = obj.cutxmin
                     this.state.cutymin = obj.cutymin
                     this.state.cutxmax = obj.cutxmax
                     this.state.cutymax = obj.cutymax
 
-                    if(this.state.gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length-1){
-                        this.PromptController.current.Palette.current.draw3DMix()
-                        this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
+                    if(this.state.gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length-1 || gen_tick==-1){
+                        this.setState({}, function(){
+                            _this.PromptController.current.Palette.current.draw3DMix()
+                        })
+                        // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
                     }
 
                     skip_redo = true
 
                 }
-
-
-                // var latents = this.state.latents
-                // if(latents!=undefined){
-                //     latents = JSON.parse(JSON.stringify(latents))
-                // }
-                // redo_obj = {
-                //     type: 'gen',
-                    
-                //     stroke_id: this.state.stroke_id, 
-
-                //     gen_tick: this.state.gen_tick,
-
-                //     current_layer: this.state.current_layer,
-                //     layer: JSON.parse(JSON.stringify(this.state.layers[this.state.current_layer])), 
-                //     // area_img: el_area.toDataURL(), 
-                //     // ratioData: JSON.parse(JSON.stringify(this.state.ratioData)),
-                //     overcoat_img: this.state.overcoat_img,
-                //     guidance_scale:   this.state.guidance_scale, 
-                //     overcoat_ratio:  this.state.overcoat_ratio,
-                //     AI_brush_size: this.state.AI_brush_size,
-                //     single_stroke_ratio: this.state.single_stroke_ratio,
-                //     gen_steps: this.state.gen_steps,
-                //     selected_prompt: JSON.parse(JSON.stringify(this.state.selected_prompt)), 
-                //     directional_prompts: JSON.parse(JSON.stringify(this.state.directional_prompts)),
-                //     prompts: JSON.parse(JSON.stringify(this.state.prompts)), 
-                //     prompt_groups: JSON.parse(JSON.stringify(this.state.prompt_groups)),
-                //     latents: latents,
-                //     cutxmin: this.state.cutxmin, 
-                //     cutxmax: this.state.cutxmax, 
-                //     cutymin: this.state.cutymin, 
-                //     cutymax: this.state.cutymax, 
-                // }
-
-                // this.state.stroke_id = undo_obj.stroke_id
-                // this.state.gen_tick = undo_obj.gen_tick
-
-                // this.state.current_layer = undo_obj.current_layer
-                // this.state.layers[undo_obj.current_layer] = undo_obj.layer
-                // var el = document.getElementById('sketchpad_canvas_'+undo_obj.layer.layer_id)
-                // var ctx = el.getContext('2d');
-                
-                // var img = new Image();
-                // img.src = undo_obj.layer.image
-                // var _this = this
-                // img.onload = function(){
-                //     ctx.clearRect(0,0,_this.state.pixelwidth,_this.state.pixelheight);
-                //     ctx.drawImage(this, 0,0)
-                // }
-
-                // // this.state.stroke_id = undefined
-                // // this.state.ratioData = undo_obj.ratioData
-                // this.state.overcoat_img = undo_obj.overcoat_img
-                // this.state.guidance_scale = undo_obj.guidance_scale
-                // this.state.overcoat_ratio = undo_obj.overcoat_ratio
-                // this.state.AI_brush_size = undo_obj.AI_brush_size
-                // this.state.single_stroke_ratio = undo_obj.single_stroke_ratio
-                // this.state.gen_steps = undo_obj.gen_steps
-                // this.state.selected_prompt = undo_obj.selected_prompt
-                // this.state.directional_prompts = undo_obj.directional_prompts
-                // this.state.prompts = undo_obj.prompts
-                // this.state.prompt_groups = undo_obj.prompt_groups
-                // this.state.latents = undo_obj.latents
-                // this.state.cutxmin = undo_obj.cutxmin
-                // this.state.cutymin = undo_obj.cutymin
-                // this.state.cutxmax = undo_obj.cutxmax
-                // this.state.cutymax = undo_obj.cutymax
 
 
             }
@@ -820,8 +789,17 @@ class Canvas extends React.Component {
                     this.state.gen_steps = obj.gen_steps
                     // this.state.selected_prompt = obj.selected_prompt
                     this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
-                    this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
-                    this.state.prompt_groups = obj.prompt_groups
+                    // this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
+                    for(var i in this.state.prompts){
+                        for(var j in obj.prompts){
+                            if(this.state.prompts[i]._id == obj.prompts[j]._id){
+                                this.state.prompts[i].prompt = obj.prompts[j].prompt
+                                continue
+                            }
+                        }
+                    }
+                    // this.state.prompt_groups = obj.prompt_groups
+                    obj.prompt_groups = JSON.parse(JSON.stringify(this.state.prompt_groups))
                     this.state.latents = obj.latents
                     this.state.cutxmin = obj.cutxmin
                     this.state.cutymin = obj.cutymin
@@ -836,6 +814,7 @@ class Canvas extends React.Component {
                     console.log('transition')
                     this.state.gen_tick = -1
                     this.state.stroke_id = undefined
+                    this.state.last_img = undefined
                     this.state.undo_states[this.state.undo_states.length-1].AI_stroke_id = this.state.AI_stroke_id
                     this.state.AI_stroke_id = -1
                     
@@ -921,6 +900,7 @@ class Canvas extends React.Component {
                 console.log(redo_obj.stroke_id, redo_obj.AI_stroke_id, redo_obj.gen_tick)
 
                 this.state.layer_img = redo_obj.layer_img
+                this.state.last_img = redo_obj.last_img
                 this.state.area_img = redo_obj.area_img
                 this.state.seed = redo_obj.seed
                 this.state.overcoat_ratio = redo_obj.overcoat_ratio
@@ -947,10 +927,19 @@ class Canvas extends React.Component {
                 this.state.gen_tick = gen_tick
                 this.state.guidance_scale = obj.guidance_scale
                 this.state.gen_steps = obj.gen_steps
-                this.state.selected_prompt = obj.selected_prompt
+                // this.state.selected_prompt = obj.selected_prompt
                 this.state.directional_prompts = obj.directional_prompts
-                this.state.prompts = obj.prompts
-                this.state.prompt_groups = obj.prompt_groups
+                // this.state.prompts = obj.prompts
+                for(var i in this.state.prompts){
+                    for(var j in obj.prompts){
+                        if(this.state.prompts[i]._id == obj.prompts[j]._id){
+                            this.state.prompts[i].prompt = obj.prompts[j].prompt
+                            continue
+                        }
+                    }
+                }
+                this.state.prompt_groups =JSON.parse(JSON.stringify(obj.prompt_groups))
+                
                 this.state.latents = obj.latents
                 this.state.cutxmin = obj.cutxmin
                 this.state.cutymin = obj.cutymin
@@ -959,7 +948,10 @@ class Canvas extends React.Component {
                 
             }
             this.state.undo_states.push(undo_obj)
-            this.setState({})
+            var _this = this
+            this.setState({}, function(){
+                _this.PromptController.current.Palette.current.draw3DMix()
+            })
         }
         
     }
@@ -974,9 +966,13 @@ class Canvas extends React.Component {
         brush_canvas.height = this.state.brush_size
         var brush_canvas_ctx = brush_canvas.getContext('2d')
         brush_canvas_ctx.fillStyle=this.state.brush_color
-        brush_canvas_ctx.fillRect(0, 0, brush_canvas.width, brush_canvas.height)
+        // brush_canvas_ctx.fillRect(0, 0, brush_canvas.width, brush_canvas.height)
+        brush_canvas_ctx.arc(brush_canvas.width/2, brush_canvas.height/2, this.state.brush_size/2, 0, 2*Math.PI, false)
+        brush_canvas_ctx.closePath()
+        brush_canvas_ctx.fill();
         brush_canvas_ctx.globalCompositeOperation = "destination-in";
-        brush_canvas_ctx.drawImage(this.state.brush_img, 0, 0, this.state.brush_size, this.state.brush_size)
+        
+        // brush_canvas_ctx.drawImage(this.state.brush_img, 0, 0, this.state.brush_size, this.state.brush_size)
         console.log(brush_canvas_ctx)
 
         var cur_colored_brush_img = new Image();
@@ -1002,34 +998,49 @@ class Canvas extends React.Component {
 
         var _this = this
 
-        cur_colored_brush_img.onload=function(){
-            
-            brush_pre_canvas_ctx.drawImage(this, x, y);
+        brush_pre_canvas_ctx.beginPath()
+        brush_pre_canvas_ctx.arc(brush_cur[0], brush_cur[1], this.state.brush_size/2, 0, 2*Math.PI, false)
+        brush_pre_canvas_ctx.fillStyle=this.state.brush_color
+        brush_pre_canvas_ctx.closePath()
+        brush_pre_canvas_ctx.fill();
 
-            if(_this.state.lasso_img!=undefined){
-                brush_pre_canvas_ctx.globalCompositeOperation = 'destination-in'
-                brush_pre_canvas_ctx.drawImage(_this.state.lasso_img, 0, 0, _this.state.pixelwidth, _this.state.pixelheight)
-                brush_pre_canvas_ctx.globalCompositeOperation = 'source-over'
-            }
-            // move lasso image to context
-            ctx.drawImage(brush_pre_canvas, 0, 0)
-    
-            // var Data_t = brush_pre_canvas_ctx.getImageData(0,0,_this.state.pixelwidth, _this.state.pixelheight)
-            // // console.log(Data_t)
-            // for(var idx=0; idx<this.width*this.height; idx++){
-            //     var w = idx%this.width
-            //     var h = parseInt(idx/this.width)
-
-            //     var idx_f = _this.state.pixelwidth*(parseInt(y)+h)+parseInt(x)+w
-            //     if(Data_t.data[idx_f*4+3]>0){
-            //         _this.state.ratioData[_this.state.layers[_this.state.current_layer].layer_id][idx_f] = 100
-            //     }
-                
-            // }
-
-            _this.setState({action:'brush', brush_cur:brush_cur, cur_colored_brush_img: cur_colored_brush_img, brush_pre_canvas:brush_pre_canvas, origin_image: cur_image})
-        
+        if(_this.state.lasso_img!=undefined){
+            brush_pre_canvas_ctx.globalCompositeOperation = 'destination-in'
+            brush_pre_canvas_ctx.drawImage(_this.state.lasso_img, 0, 0, _this.state.pixelwidth, _this.state.pixelheight)
+            brush_pre_canvas_ctx.globalCompositeOperation = 'source-over'
         }
+        ctx.drawImage(brush_pre_canvas, 0, 0)
+
+        _this.setState({action:'brush', brush_cur:brush_cur, cur_colored_brush_img: cur_colored_brush_img, brush_pre_canvas:brush_pre_canvas, origin_image: cur_image})
+
+        // cur_colored_brush_img.onload=function(){
+            
+        //     brush_pre_canvas_ctx.drawImage(this, x, y);
+
+        //     if(_this.state.lasso_img!=undefined){
+        //         brush_pre_canvas_ctx.globalCompositeOperation = 'destination-in'
+        //         brush_pre_canvas_ctx.drawImage(_this.state.lasso_img, 0, 0, _this.state.pixelwidth, _this.state.pixelheight)
+        //         brush_pre_canvas_ctx.globalCompositeOperation = 'source-over'
+        //     }
+        //     // move lasso image to context
+        //     ctx.drawImage(brush_pre_canvas, 0, 0)
+    
+        //     // var Data_t = brush_pre_canvas_ctx.getImageData(0,0,_this.state.pixelwidth, _this.state.pixelheight)
+        //     // // console.log(Data_t)
+        //     // for(var idx=0; idx<this.width*this.height; idx++){
+        //     //     var w = idx%this.width
+        //     //     var h = parseInt(idx/this.width)
+
+        //     //     var idx_f = _this.state.pixelwidth*(parseInt(y)+h)+parseInt(x)+w
+        //     //     if(Data_t.data[idx_f*4+3]>0){
+        //     //         _this.state.ratioData[_this.state.layers[_this.state.current_layer].layer_id][idx_f] = 100
+        //     //     }
+                
+        //     // }
+
+        //     _this.setState({action:'brush', brush_cur:brush_cur, cur_colored_brush_img: cur_colored_brush_img, brush_pre_canvas:brush_pre_canvas, origin_image: cur_image})
+        
+        // }
 
         
         
@@ -1221,6 +1232,7 @@ class Canvas extends React.Component {
         var cur_image = el.toDataURL()
         var layers = this.state.layers
         var brush_cur = this.getCurrentMouseOnBoard(e).slice()
+        layers[this.state.current_layer].image = cur_image
 
         // var brush_pre_canvas = this.state.brush_pre_canvas
         // var brush_pre_canvas_ctx = brush_pre_canvas.getContext('2d')
@@ -2499,6 +2511,7 @@ class Canvas extends React.Component {
                 top: this.state.boardheight/2-this.state.boardzoom*this.state.boardheight*this.state.boardcenter[1],
                 left: horizontal_offset+this.state.boardwidth/2-this.state.boardzoom*this.state.boardwidth*this.state.boardcenter[0],
             }}>
+                <canvas id='checkerboard' width={this.state.pixelwidth} height={this.state.pixelheight} style={{width: '100%', position:'absolute', top:'0', left: '0'}}></canvas>
                 
                 {this.renderCanvas()}
                 <AIDrawCanvas ref={this.AIDrawCanvas} mother_state={this.state} mother_this={this}></AIDrawCanvas>

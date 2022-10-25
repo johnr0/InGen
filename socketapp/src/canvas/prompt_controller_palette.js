@@ -20,6 +20,12 @@ class PromptControllerPalette extends React.Component{
         setTimeout(function(){
             _this.draw3DMix()
         },50)
+
+        const rO = new ResizeObserver((entries)=>{
+            _this.draw3DMix()
+        })
+        rO.observe(document.getElementById('prompt_palette_board'))
+
     }
 
     componentDidUpdate(){
@@ -52,6 +58,39 @@ class PromptControllerPalette extends React.Component{
         })
     }
 
+    pDistance(x, y, x1, y1, x2, y2) {
+
+        var A = x - x1;
+        var B = y - y1;
+        var C = x2 - x1;
+        var D = y2 - y1;
+        
+        var dot = A * C + B * D;
+        var len_sq = C * C + D * D;
+        var param = -1;
+        if (len_sq != 0) //in case of 0 length line
+            param = dot / len_sq;
+        
+        var xx, yy;
+        
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        }
+        else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        }
+        else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+        
+        var dx = x - xx;
+        var dy = y - yy;
+        return [dx, dy];
+    }
+
     setDoublePrompt(val, idx, e){
         var prompt1 = this.props.mother_state.prompts[val[0]]
         var prompt2 = this.props.mother_state.prompts[val[1]]
@@ -74,6 +113,8 @@ class PromptControllerPalette extends React.Component{
         var x2 = prompt2.position[0] * palette_width
         var y2 = prompt2.position[1] * palette_height
 
+        var pDist = this.pDistance(x, y, x1, y1, x2, y2)
+
         var len1 = Math.sqrt((x1-x)*(x1-x) + (y1-y)*(y1-y))
         var len2 = Math.sqrt((x2-x)*(x2-x) + (y2-y)*(y2-y))
         
@@ -81,6 +122,7 @@ class PromptControllerPalette extends React.Component{
         var w2 = len1/(len1+len2)
         var selected_prompt={
             position: [x/palette_width, y/palette_height],
+            side: pDist, 
             prompts: [val[0], val[1]],
             weights: [w1, w2],
         }
@@ -178,7 +220,7 @@ class PromptControllerPalette extends React.Component{
     }
 
     initMovePrompt(idx){
-        if(this.state.palette_fix==false && this.props.mother_state.gen_tick<0){
+        if(this.state.palette_fix==false){
             this.setState({current_prompt: idx, action:'move_prompt'})
         }
         this.setSinglePrompt(idx)
@@ -225,7 +267,7 @@ class PromptControllerPalette extends React.Component{
 
     renderMix2(){
         var palette_el = document.getElementById('prompt_palette_board')
-        if(palette_el==null){
+        if(palette_el==null || this.props.mother_state.prompt_groups==undefined){
             return
         }
         var palette_width = palette_el.getBoundingClientRect().width
@@ -282,8 +324,11 @@ class PromptControllerPalette extends React.Component{
     combine3(val, idx){
         if(this.state.current_prompt!=-1 && this.state.action=='move_prompt'){
             if(val.indexOf(this.state.current_prompt)==-1){
-                this.props.mother_state.prompt_groups[idx].push(this.state.current_prompt)
-                this.props.mother_this.setState({})
+                if(this.combineCheck(this.props.mother_state.prompt_groups[idx])==false){
+                    this.props.mother_state.prompt_groups[idx].push(this.state.current_prompt)
+                    this.props.mother_this.setState({})
+                }
+                
             }
         }
     }
@@ -320,7 +365,7 @@ class PromptControllerPalette extends React.Component{
 
     draw3DMix(){
         var palette_el = document.getElementById('prompt_palette_board')
-        if(palette_el==null){
+        if(palette_el==null || this.props.mother_state.prompt_groups==undefined){
             return
         }
         var palette_width = palette_el.getBoundingClientRect().width
@@ -380,7 +425,7 @@ class PromptControllerPalette extends React.Component{
 
     renderMix3_canvas(){
         var palette_el = document.getElementById('prompt_palette_board')
-        if(palette_el==null){
+        if(palette_el==null || this.props.mother_state.prompt_groups==undefined){
             return
         }
         var palette_width = palette_el.getBoundingClientRect().width
@@ -395,7 +440,7 @@ class PromptControllerPalette extends React.Component{
 
     renderMix3(){
         var palette_el = document.getElementById('prompt_palette_board')
-        if(palette_el==null){
+        if(palette_el==null || this.props.mother_state.prompt_groups==undefined){
             return
         }
         var palette_width = palette_el.getBoundingClientRect().width
@@ -517,6 +562,32 @@ class PromptControllerPalette extends React.Component{
         })
     }
 
+    combineCheck(cur_prompt_group){
+        var pass = false
+        var AI_stroke_tables = this.props.mother_state.AI_stroke_tables[this.props.mother_state.stroke_id]
+        for(var idx in AI_stroke_tables){
+            var AI_stroke_list = AI_stroke_tables[idx]
+            for(var idx2 in AI_stroke_list){
+                var intermediate_id = AI_stroke_list[idx2]
+                var cur_obj = this.props.mother_state.AI_intermediate_objs[intermediate_id]
+                if(cur_obj.selected_prompt.prompts.length==cur_prompt_group.length){
+                    pass = true
+                    for(var idx3 in cur_obj.selected_prompt.prompts){
+                        if(cur_prompt_group.indexOf(cur_obj.selected_prompt.prompts[idx3])==-1){
+                            pass = false
+                            break
+                        }
+                    }
+                    if(pass){
+                        return true
+                    }
+                }
+            }
+
+        }
+        return false
+    }
+
     combine2(idx){
         console.log(idx)
         if(this.state.current_prompt!=-1 && this.state.action=='move_prompt'){
@@ -526,9 +597,17 @@ class PromptControllerPalette extends React.Component{
                     var cur_prompt_group = this.props.mother_state.prompt_groups[i]
                     if(cur_prompt_group.indexOf(idx)!=-1 && cur_prompt_group.indexOf(this.state.current_prompt)!=-1){
                         if(cur_prompt_group.length==2){
-                            this.props.mother_state.prompt_groups.splice(i, 1)
+                            if(this.combineCheck(cur_prompt_group)==false){
+                                this.props.mother_state.prompt_groups.splice(i, 1)
+                            }
+                            
                         }else if(cur_prompt_group.length==3){
-                            this.props.mother_state.prompt_groups[i].splice(cur_prompt_group.indexOf(this.state.current_prompt),1)
+                            // if some prompts paths goes through this.. skip
+                            if(this.combineCheck(cur_prompt_group)==false){
+                                this.props.mother_state.prompt_groups[i].splice(cur_prompt_group.indexOf(this.state.current_prompt),1)
+                            }
+
+                            // this.props.mother_state.prompt_groups[i].splice(cur_prompt_group.indexOf(this.state.current_prompt),1)
                         }
                         already_included = true
                         break
@@ -599,6 +678,28 @@ class PromptControllerPalette extends React.Component{
         return pc;
     }
 
+    promptPositionComparison(obj1, obj2){
+        var obj1_prompts = obj1.selected_prompt.prompts
+        var obj2_prompts = obj2.selected_prompt.prompts
+
+        var obj1_weights = obj1.selected_prompt.weights
+        var obj2_weights = obj2.selected_prompt.weights
+
+        if(obj1_prompts.length != obj2_prompts.length){
+            return false
+        }
+        for(var i1 in obj1_prompts){
+            var i2 = obj2_prompts.indexOf(obj1_prompts[i1])
+            if(i2==-1){
+                return false
+            }
+            if(obj1_weights[i1]!=obj2_weights[i2]){
+                return false
+            }
+        }
+        return true
+    }
+
     renderPastPaths(){
         var palette_el = document.getElementById('prompt_palette_board')
 
@@ -622,11 +723,32 @@ class PromptControllerPalette extends React.Component{
                             continue
                         }
                         if(cur_obj.selected_prompt==undefined){
-                            console.log(cur_obj)
                             continue
                         }
-                        var width = cur_obj.selected_prompt.position[0]*palette_width
-                        var height = cur_obj.selected_prompt.position[1]*palette_height
+
+                        var width = 0
+                        var height = 0
+
+                        for(var p_idx in cur_obj.selected_prompt.prompts){
+                            width = width + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[0]*cur_obj.selected_prompt.weights[p_idx]
+                            height = height + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[1]*cur_obj.selected_prompt.weights[p_idx]
+                        }
+
+
+                        width = width*palette_width
+                        height = height*palette_height
+
+                        if(cur_obj.selected_prompt.prompts.length==2){
+                            var x0 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[0]].position[0]
+                            var y0 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[0]].position[1]
+                            var x1 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[1]].position[0]
+                            var y1 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[1]].position[1]
+                            var xd = x1-x0
+                            var yd = y1-y0
+                            var d = Math.sqrt(cur_obj.selected_prompt.side[0]*cur_obj.selected_prompt.side[0]+cur_obj.selected_prompt.side[1]*cur_obj.selected_prompt.side[1])
+                            width = width + d* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
+                            height = height + d * Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+                        }
 
                             var prev_intermediate_id = AI_stroke_list[i-1]
                             var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
@@ -635,13 +757,13 @@ class PromptControllerPalette extends React.Component{
 
                             var pass = true
                             if(prev_obj!=undefined){ 
-                                if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                if(this.promptPositionComparison(prev_obj, cur_obj)){
                                     pass= false
                                 }
                             }
 
                             if(next_obj!=undefined){ 
-                                if(next_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && next_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                                if(this.promptPositionComparison(next_obj, cur_obj)){
                                     pass= false
                                 }
                             }
@@ -654,7 +776,7 @@ class PromptControllerPalette extends React.Component{
                                 
                                 for(var li in AI_stroke_tables[ti]){
                                     var comp_obj = this.props.mother_state.AI_intermediate_objs[AI_stroke_tables[ti][li]]
-                                    if(comp_obj.selected_prompt.position[0]==cur_obj.selected_prompt.position[0] && comp_obj.selected_prompt.position[1]==cur_obj.selected_prompt.position[1]){
+                                    if(this.promptPositionComparison(comp_obj, cur_obj)){
                                         counter = counter + 1
                                         if(counter>=2){
                                             samepos = samepos+1
@@ -729,23 +851,47 @@ class PromptControllerPalette extends React.Component{
                             console.log(cur_obj)
                             return
                         }
-                        var width = cur_obj.selected_prompt.position[0]*palette_width
-                        var height = cur_obj.selected_prompt.position[1]*palette_height
+                        var width = 0
+                        var height = 0
+
+                        for(var p_idx in cur_obj.selected_prompt.prompts){
+                            width = width + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[0]*cur_obj.selected_prompt.weights[p_idx]
+                            height = height + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[1]*cur_obj.selected_prompt.weights[p_idx]
+                        }
+                        // if()
+
+
+                        width = width*palette_width
+                        height = height*palette_height
+
+                        if(cur_obj.selected_prompt.prompts.length==2){
+                            var x0 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[0]].position[0]
+                            var y0 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[0]].position[1]
+                            var x1 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[1]].position[0]
+                            var y1 = this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[1]].position[1]
+                            var xd = x1-x0
+                            var yd = y1-y0
+                            var d = Math.sqrt(cur_obj.selected_prompt.side[0]*cur_obj.selected_prompt.side[0]+cur_obj.selected_prompt.side[1]*cur_obj.selected_prompt.side[1])
+                            width = width + d* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
+                            height = height + d * Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+                        }
 
                         var prev_intermediate_id = AI_stroke_list[idx2-1]
                         var prev_obj = this.props.mother_state.AI_intermediate_objs[prev_intermediate_id]
                         var next_intermediate_id = AI_stroke_list[idx2+1]
                         var next_obj = this.props.mother_state.AI_intermediate_objs[next_intermediate_id]
 
+                        
+
                         var pass = true
                         if(prev_obj!=undefined){ 
-                            if(prev_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && prev_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                            if(this.promptPositionComparison(prev_obj, cur_obj)){
                                 pass= false
                             }
                         }
 
                         if(next_obj!=undefined){ 
-                            if(next_obj.selected_prompt.position[0] == cur_obj.selected_prompt.position[0] && next_obj.selected_prompt.position[1] == cur_obj.selected_prompt.position[1]){
+                            if(this.promptPositionComparison(next_obj, cur_obj)){
                                 pass= false
                             }
                         }
@@ -760,7 +906,7 @@ class PromptControllerPalette extends React.Component{
                             
                             for(var li in AI_stroke_tables[ti]){
                                 var comp_obj = this.props.mother_state.AI_intermediate_objs[AI_stroke_tables[ti][li]]
-                                if(comp_obj.selected_prompt.position[0]==cur_obj.selected_prompt.position[0] && comp_obj.selected_prompt.position[1]==cur_obj.selected_prompt.position[1]){
+                                if(this.promptPositionComparison(comp_obj, cur_obj)){
                                     counter = counter + 1
                                     if(counter>=2){
                                         samepos = samepos+1
@@ -853,8 +999,16 @@ class PromptControllerPalette extends React.Component{
         this.props.mother_state.gen_steps = obj.gen_steps
         // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
         this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
-        this.props.mother_state.prompts = obj.prompts
-        this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+        // this.props.mother_state.prompts = obj.prompts
+        for(var i in this.props.mother_state.prompts){
+            for(var j in obj.prompts){
+                if(this.props.mother_state.prompts[i]._id == obj.prompts[j]._id){
+                    this.props.mother_state.prompts[i].prompt = obj.prompts[j].prompt
+                    continue
+                }
+            }
+        }
+        // this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
         this.props.mother_state.latents = obj.latents
         this.props.mother_state.cutxmin = obj.cutxmin
         this.props.mother_state.cutymin = obj.cutymin
@@ -920,7 +1074,7 @@ class PromptControllerPalette extends React.Component{
             <div class="switch" style={{'opacity': (this.props.mother_state.gen_tick>=0)?0.5:1}}>
                 <label>
                 Edit
-                <input onChange={this.toggleFix.bind(this)} checked={this.props.mother_state.gen_tick>=0 || this.state.palette_fix} type="checkbox" disabled={this.state.gen_tick>=0}/>
+                <input onChange={this.toggleFix.bind(this)} checked={this.state.palette_fix} type="checkbox" disabled={this.state.gen_tick>=0}/>
                 <span class="lever"></span>
                 Fix
                 </label>

@@ -53,8 +53,8 @@ class PromptBrushConfig extends React.Component{
     }
 
     render(){
-
-        var pixellength = (this.props.mother_state.pixelheight < this.props.mother_state.pixelwidth)?this.props.mother_state.pixelheight:this.props.mother_state.pixelwidth
+        var pixelwidth = this.props.mother_state.pixelwidth
+        var pixelheight = this.props.mother_state.pixelheight
         return (<div className={'brush_config'}>
             
             
@@ -137,12 +137,13 @@ class PromptBrushConfig extends React.Component{
                 </div>
                 <div style={{width:'90%', height: '100%', display: 'inline-block', overflow:'hidden', position:'relative'}}>
                     <div id='AI_brush_size_canvas' width={this.props.mother_state.brush_img.width} height={this.props.mother_state.brush_img.height} 
-                    style={{width: this.props.mother_state.AI_brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom, 
-                    height: this.props.mother_state.AI_brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom,
-                    position:'absolute', left: 165.6/2-this.props.mother_state.AI_brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom/2,
-                    top: 184/2-this.props.mother_state.AI_brush_size/pixellength*this.props.mother_state.boardlength*this.props.mother_state.boardzoom/2,
+                    style={{width: this.props.mother_state.AI_brush_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom, 
+                    height: this.props.mother_state.AI_brush_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom,
+                    position:'absolute', left: 165.6/2-this.props.mother_state.AI_brush_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom/2,
+                    top: 184/2-this.props.mother_state.AI_brush_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom/2,
                     borderRadius: '50%', border: 'solid 1px #333333'
-                    }}></div>
+                    }}
+                    ></div>
                 </div>
             </div>}
             

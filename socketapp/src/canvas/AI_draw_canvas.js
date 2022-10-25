@@ -17,11 +17,13 @@ class AIDrawCanvas extends React.Component{
         this.props.mother_this.setState({})
 
         // var sensorEndpoint = "http://localhost:5001"
-        this.socket = io('http://80fa-35-229-181-63.ngrok.io/', {
+        this.socket = io('http://b2ab-35-236-184-78.ngrok.io/', {
             reconnection: true,
             maxHttpBufferSize: 1e8,
             // transports: ['websocket'],
         })
+
+        
 
         console.log(this.socket)
         console.log("component mounted")
@@ -53,7 +55,6 @@ class AIDrawCanvas extends React.Component{
                             ctx.drawImage(img, _this.props.mother_state.cutxmin, _this.props.mother_state.cutymin)
                             var layers = _this.props.mother_state.layers
                             layers[_this.props.mother_state.current_layer].image = canvas.toDataURL()
-
 
 
                             var intermediate_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
@@ -111,6 +112,7 @@ class AIDrawCanvas extends React.Component{
         })
     }
 
+
     undo_store(){
         var cur_layer = JSON.parse(JSON.stringify(this.props.mother_state.layers[this.props.mother_state.current_layer]))
         var text_prompts = []
@@ -166,14 +168,19 @@ class AIDrawCanvas extends React.Component{
         if(this.props.mother_state.stroke_id!=undefined && this.props.mother_state.AI_brush_mode=='draw'){
             return
         }
+        if(this.props.mother_state.stroke_id==undefined && (this.props.mother_state.AI_brush_mode=='erase' || this.props.mother_state.AI_brush_mode=='revise')){
+            return
+        }
         var brush_canvas = document.createElement('canvas')
         brush_canvas.width = this.props.mother_state.AI_brush_size
         brush_canvas.height = this.props.mother_state.AI_brush_size
         var brush_canvas_ctx = brush_canvas.getContext('2d')
+        brush_canvas_ctx.beginPath()
+        brush_canvas_ctx.arc(brush_canvas.width/2, brush_canvas.height/2, this.props.mother_state.AI_brush_size/2, 0, 2*Math.PI, false)
         brush_canvas_ctx.fillStyle='black'
-        brush_canvas_ctx.fillRect(0, 0, brush_canvas.width, brush_canvas.height)
-        brush_canvas_ctx.globalCompositeOperation = "destination-in";
-        brush_canvas_ctx.drawImage(this.props.mother_state.brush_img, 0, 0, this.props.mother_state.AI_brush_size, this.props.mother_state.AI_brush_size)
+        brush_canvas_ctx.closePath()
+        // brush_pre_canvas_ctx.stroke();
+        brush_canvas_ctx.fill();
         console.log(brush_canvas_ctx)
 
         var cur_colored_brush_img = new Image();
@@ -338,8 +345,8 @@ class AIDrawCanvas extends React.Component{
 
             // console.log(cutxmax, cutxmin, cutymax, cutymin)
 
-            var x_add = 256 //parseInt((cutxmax-cutxmin)*0.5)
-            var y_add = 256 //parseInt((cutymax-cutymin)*0.5)
+            var x_add = parseInt((cutxmax-cutxmin)*0.5) // 256
+            var y_add = parseInt((cutymax-cutymin)*0.5) // 256
             cutxmax = Math.min(cutxmax+x_add, _this.props.mother_state.pixelwidth-1)
             cutxmin = Math.max(cutxmin-x_add, 0)
             cutymax = Math.min(cutymax+y_add, _this.props.mother_state.pixelheight-1)
@@ -450,7 +457,7 @@ class AIDrawCanvas extends React.Component{
     }
 
     AIbrushEnd(e){
-        if(this.props.mother_state.multi_strokes==false && this.props.mother_state.AI_brush_mode=='draw'){
+        if(this.props.mother_state.gen_tick==-1 && this.props.mother_state.multi_strokes==false && this.props.mother_state.AI_brush_mode=='draw'){
             this.initGen2(0)
         }else if(this.props.mother_state.multi_strokes==false && this.props.mother_state.AI_brush_mode=='erase'){
             this.genRemovePart()
@@ -524,7 +531,7 @@ class AIDrawCanvas extends React.Component{
         console.log(this.props.mother_state.area_img, 'area_img')
         // console.log(this.props.mother_state.overcoat_img, 'overcoat_img')
         console.log(this.props.mother_state.layer_img, 'layer_img')
-
+        
         var sent_data = {
             'stroke_id': this.props.mother_state.stroke_id,
             'gen_tick': this.props.mother_state.gen_tick,
@@ -558,11 +565,15 @@ class AIDrawCanvas extends React.Component{
             return
         }
         var _this = this
+        
         var el_area = document.getElementById('AI_area_canvas')
         var ctx_area = el_area.getContext('2d');
 
         var el_old_area = document.createElement('canvas')
         var ctx_old_area = el_old_area.getContext('2d')
+
+        var el_last_area = document.createElement('canvas')
+        var ctx_last_area = el_last_area.getContext('2d')
 
         
 
@@ -573,6 +584,13 @@ class AIDrawCanvas extends React.Component{
 
         el_old_area.width = this.props.mother_state.pixelwidth
         el_old_area.height = this.props.mother_state.pixelheight
+        el_last_area.width = this.props.mother_state.pixelwidth
+        el_last_area.height = this.props.mother_state.pixelheight
+
+        var el_last_crop_area = document.createElement('canvas')
+        var ctx_last_crop_area = el_last_crop_area.getContext('2d')
+        el_last_crop_area.width = cutxmax-cutxmin+1
+        el_last_crop_area.height = cutymax-cutymin+1
 
         
 
@@ -582,7 +600,13 @@ class AIDrawCanvas extends React.Component{
         old_img.onload = function(){
             ctx_old_area.drawImage(old_img, cutxmin, cutymin)
             var oldData = ctx_old_area.getImageData(0,0,el_old_area.width, el_old_area.height)
+            var oldData_original = ctx_old_area.getImageData(0,0,el_old_area.width, el_old_area.height)
             var newData = ctx_area.getImageData(0,0,el_area.width, el_area.height)
+
+
+            
+
+            
 
             for(var i=0; i<oldData.data.length; i+=4){
                 if(newData.data[i+3]==0){
@@ -590,11 +614,12 @@ class AIDrawCanvas extends React.Component{
                 }
             }
             ctx_old_area.putImageData(oldData, 0, 0)
-            // console.log(el_old_area.toDataURL())
+            
+            console.log(el_last_area.toDataURL())
 
 
             var new_stroke_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-            var new_AI_stroke_id = _this.props.mother_state.AI_stroke_id
+            // var new_AI_stroke_id = _this.props.mother_state.AI_stroke_id
             // console.log(new_stroke_id)
 
             var old_AI_stroke_table = _this.props.mother_state.AI_stroke_tables[_this.props.mother_state.stroke_id]
@@ -602,184 +627,240 @@ class AIDrawCanvas extends React.Component{
             var new_undo_obj = JSON.parse(JSON.stringify(_this.props.mother_state.undo_states[_this.props.mother_state.undo_states.length-1]))
             console.log(new_undo_obj)
 
-            var init_img = new Image;
-            var cur_list = _this.props.mother_state.AI_stroke_tables[_this.props.mother_state.stroke_id][_this.props.mother_state.AI_stroke_id]
-            if(cur_list.length!=_this.props.mother_state.gen_steps){
-                ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
-                return 
+            if(_this.props.mother_state.last_img == undefined){
+                // var lastData = ctx_old_area.getImageData(0, 0, el_last_area.width, el_last_area.height)
+                ctx_last_area.putImageData(oldData_original, 0, 0)
+                ctx_last_crop_area.drawImage(el_last_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
+                console.log(el_last_crop_area.toDataURL())
+                new_undo_obj['last_img'] = el_last_crop_area.toDataURL()
+                _this.props.mother_state.last_img = el_last_crop_area.toDataURL()
+            }else{
+                var last_img = new Image;
+                last_img.src = _this.props.mother_state.last_img
+                last_img.onload = function(){
+                    // console.log('draw')
+                    ctx_last_crop_area.drawImage(last_img, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
+                    // console.log('succeed')
+                    new_undo_obj['last_img'] = el_last_crop_area.toDataURL()
+                    _this.props.mother_state.last_img = el_last_crop_area.toDataURL()
+                    // console.log('last img')
+                }
             }
+
+            
+            var cur_AI_stroke_id = _this.props.mother_state.AI_stroke_id
+            // for(var cur_AI_stroke_id in old_AI_stroke_table){
+
+            var init_img = new Image;
+            var cur_list = _this.props.mother_state.AI_stroke_tables[_this.props.mother_state.stroke_id][cur_AI_stroke_id]
+            new_AI_stroke_table.push([])
+            // if(cur_list.length!=_this.props.mother_state.gen_steps){
+                
+            //     continue
+            // }
+            
             var cur_id = cur_list[cur_list.length-1]
 
             init_img.src = _this.props.mother_state.AI_intermediate_objs[cur_id].layer.image
+            init_img.cur_AI_stroke_id = cur_AI_stroke_id
             init_img.onload = function(){
+                // new_AI_stroke_table.push([])
+                console.log('here1')
+                for(var obj_id_idx in old_AI_stroke_table[this.cur_AI_stroke_id]){
+                    new_AI_stroke_table[0].push(undefined)
+                }
+                console.log('here2')
+                // console.log(new_AI_stroke_table[this.cur_AI_stroke_id].length)
+                for(var obj_id_idx in old_AI_stroke_table[this.cur_AI_stroke_id]){
+                    var obj_id = old_AI_stroke_table[this.cur_AI_stroke_id][obj_id_idx]
+                    var new_obj_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+                    var new_obj = JSON.parse(JSON.stringify(_this.props.mother_state.AI_intermediate_objs[obj_id]))
+                    
+                    // console.log(new_obj.gen_tick)
+                    // do some editing on new_obj here
+                    new_obj['stroke_id'] = new_stroke_id
+                    
+                    // change layer
+                    
+                    var obj_img = new Image;
+                    obj_img.src = new_obj.layer.image
+                    obj_img.new_obj = new_obj
+                    obj_img.cur_AI_stroke_id = this.cur_AI_stroke_id
+                    obj_img.obj_id_idx = obj_id_idx
+                    obj_img.new_obj_id = new_obj_id
+                    // obj_img.im = obj_img
+                    // console.log(new_obj.layer.image)
+                    obj_img.onload = function(){
+                        // console.log(this.src)
+                        var new_obj_c = JSON.parse(JSON.stringify(this.new_obj))
+                        var el_obj_area = document.createElement('canvas')
+                        el_obj_area.width = _this.props.mother_state.pixelwidth
+                        el_obj_area.height = _this.props.mother_state.pixelheight
+                        var ctx_obj_area = el_obj_area.getContext('2d')
+                        ctx_obj_area.drawImage(this, 0, 0)
+                        // console.log(el_obj_area.toDataURL())
+                        var objData = ctx_obj_area.getImageData(0,0,el_obj_area.width, el_obj_area.height)
+                        for(var i=0; i<objData.data.length; i+=4){
+                            if(oldData.data[i+3]==0){
+                                objData.data[i+3]=0
+                            }
+                        }
+                        ctx_obj_area.putImageData(objData, 0, 0)
+                        var el_update_area = document.createElement('canvas')
+                        var ctx_update_area = el_update_area.getContext('2d')
+                        el_update_area.width = _this.props.mother_state.pixelwidth
+                        el_update_area.height = _this.props.mother_state.pixelheight
+                        ctx_update_area.drawImage(init_img, 0, 0)
+                        ctx_update_area.drawImage(el_obj_area, 0, 0)
 
-                for(var cur_AI_stroke_id in old_AI_stroke_table){
-                    new_AI_stroke_table.push([])
-                    for(var obj_id_idx in old_AI_stroke_table[cur_AI_stroke_id]){
-                        new_AI_stroke_table[cur_AI_stroke_id].push(undefined)
+                        // change
+                        // console.log(new_obj_c.gen_tick)
+                        new_obj_c.layer.image = el_update_area.toDataURL()
+                        new_obj_c.area_img = el_old_area.toDataURL()
+                        
+                        _this.props.mother_state.AI_intermediate_objs[this.new_obj_id] = new_obj_c
+                        new_AI_stroke_table[0][this.obj_id_idx] = this.new_obj_id
+                        // new_AI_stroke_table[this.cur_AI_stroke_id].push(this.new_obj_id)
+
+                        if(new_obj_c.gen_tick==_this.props.mother_state.gen_tick+1){
+                            // change the current view
+                            // console.log('is it gone through?', el_update_area.toDataURL())
+                            var canvas = document.getElementById('sketchpad_canvas_'+_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id)
+                            var ctx = canvas.getContext('2d')
+                            ctx.clearRect(0,0,_this.props.mother_state.pixelwidth,_this.props.mother_state.pixelheight)
+                            ctx.drawImage(el_update_area, 0, 0)
+                            
+                            var layers = _this.props.mother_state.layers
+                            layers[_this.props.mother_state.current_layer].image = canvas.toDataURL()
+                        }
+                        
+                        // console.log(_this.props.mother_state.AI_stroke_tables)
                     }
-                    console.log(new_AI_stroke_table[cur_AI_stroke_id].length)
-                    for(var obj_id_idx in old_AI_stroke_table[cur_AI_stroke_id]){
-                        var obj_id = old_AI_stroke_table[cur_AI_stroke_id][obj_id_idx]
-                        var new_obj_id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-                        var new_obj = JSON.parse(JSON.stringify(_this.props.mother_state.AI_intermediate_objs[obj_id]))
-                        
-                        // console.log(new_obj.gen_tick)
-                        // do some editing on new_obj here
-                        new_obj['stroke_id'] = new_stroke_id
-                        
-                        // change layer
-                        
-                        var obj_img = new Image;
-                        obj_img.src = new_obj.layer.image
-                        obj_img.new_obj = new_obj
-                        obj_img.cur_AI_stroke_id = cur_AI_stroke_id
-                        obj_img.obj_id_idx = obj_id_idx
-                        obj_img.new_obj_id = new_obj_id
-                        // obj_img.im = obj_img
-                        // console.log(new_obj.layer.image)
-                        obj_img.onload = function(){
-                            // console.log(this.src)
-                            var new_obj_c = JSON.parse(JSON.stringify(this.new_obj))
-                            var el_obj_area = document.createElement('canvas')
-                            el_obj_area.width = _this.props.mother_state.pixelwidth
-                            el_obj_area.height = _this.props.mother_state.pixelheight
-                            var ctx_obj_area = el_obj_area.getContext('2d')
-                            ctx_obj_area.drawImage(this, 0, 0)
-                            // console.log(el_obj_area.toDataURL())
-                            var objData = ctx_obj_area.getImageData(0,0,el_obj_area.width, el_obj_area.height)
-                            for(var i=0; i<objData.data.length; i+=4){
-                                if(oldData.data[i+3]==0){
-                                    objData.data[i+3]=0
+                    
+                }
+                console.log('here3')
+                // if(cur_AI_stroke_id==_this.props.mother_state.AI_stroke_id){
+                    var el_crop_area = document.createElement('canvas')
+                    var ctx_crop_area = el_crop_area.getContext('2d')
+
+                    
+
+                    el_crop_area.width = cutxmax-cutxmin+1
+                    el_crop_area.height = cutymax-cutymin+1
+                    
+                    console.log('738', cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1)
+
+                    var el_new_init_area = document.createElement('canvas')
+                    var ctx_new_init_area = el_new_init_area.getContext('2d')
+                    el_new_init_area.width = _this.props.mother_state.pixelwidth
+                    el_new_init_area.height = _this.props.mother_state.pixelheight
+                    var el_new_init_cropped_area = document.createElement('canvas')
+                    var ctx_new_init_cropped_area = el_new_init_cropped_area.getContext('2d')
+                    el_new_init_cropped_area.width = cutxmax-cutxmin+1
+                    el_new_init_cropped_area.height = cutymax-cutymin+1
+                    
+
+                    var promise0 = new Promise(function(resolve, reject){
+                        ctx_new_init_area.drawImage(init_img, 0, 0)
+                        // var lastData = ctx_old_area.getImageData(0, 0, el_last_area.width, el_last_area.height)
+                        resolve('done0')
+                    })
+
+                    promise0.then(function(value){
+                        var promise1 = new Promise(function(resolve, reject){
+                            
+                            console.log(el_old_area.toDataURL())
+                            var newinitData = ctx_new_init_area.getImageData(0, 0, el_new_init_area.width, el_new_init_area.height)
+                            var oldData = ctx_old_area.getImageData(0,0,el_old_area.width, el_old_area.height)
+                            for(var i=0; i<oldData.data.length; i+=4){
+                                if(oldData.data[i+3]!=0){
+                                    newinitData.data[i+3]=0
                                 }
                             }
-                            ctx_obj_area.putImageData(objData, 0, 0)
-                            var el_update_area = document.createElement('canvas')
-                            var ctx_update_area = el_update_area.getContext('2d')
-                            el_update_area.width = _this.props.mother_state.pixelwidth
-                            el_update_area.height = _this.props.mother_state.pixelheight
-                            ctx_update_area.drawImage(init_img, 0, 0)
-                            ctx_update_area.drawImage(el_obj_area, 0, 0)
-
-                            // change
-                            // console.log(new_obj_c.gen_tick)
-                            new_obj_c.layer.image = el_update_area.toDataURL()
-                            new_obj_c.area_img = el_old_area.toDataURL()
+                            ctx_new_init_area.putImageData(newinitData, 0,0)
+                            console.log('sqq', el_new_init_area.toDataURL())
+                            new_undo_obj.layer.image = el_new_init_area.toDataURL()
+                            ctx_crop_area.drawImage(el_old_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
+                            ctx_new_init_cropped_area.drawImage(el_new_init_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
+                            resolve('done1')
+                        }, function(error){
+                            console.log('might have been errors')
+                        })
+                        promise1.then(function(value){
+                            console.log(el_new_init_cropped_area.toDataURL())
+                            _this.props.mother_state.layer_img = el_new_init_cropped_area.toDataURL()
+                            _this.props.mother_state.area_img = el_crop_area.toDataURL()
                             
-                            _this.props.mother_state.AI_intermediate_objs[this.new_obj_id] = new_obj_c
-                            new_AI_stroke_table[this.cur_AI_stroke_id][this.obj_id_idx] = this.new_obj_id
-                            // new_AI_stroke_table[this.cur_AI_stroke_id].push(this.new_obj_id)
-
-                            if(new_obj_c.gen_tick==_this.props.mother_state.gen_tick && this.cur_AI_stroke_id==_this.props.mother_state.AI_stroke_id){
-                                // change the current view
-                                // console.log('is it gone through?', el_update_area.toDataURL())
-                                var canvas = document.getElementById('sketchpad_canvas_'+_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id)
-                                var ctx = canvas.getContext('2d')
-                                ctx.clearRect(0,0,_this.props.mother_state.pixelwidth,_this.props.mother_state.pixelheight)
-                                ctx.drawImage(el_update_area, 0, 0)
-                                var layers = _this.props.mother_state.layers
-                                layers[_this.props.mother_state.current_layer].image = canvas.toDataURL()
-                            }
+                            console.log(el_crop_area.toDataURL())
+                            // console.log(el_last_crop_area.toDataURL())
+                            new_undo_obj['layer_img'] = el_new_init_cropped_area.toDataURL()
+                            new_undo_obj['area_img'] = el_crop_area.toDataURL()
                             
-                            console.log(_this.props.mother_state.AI_stroke_tables)
-                        }
-                        
-                    }
-                }
-                // console.log(new_AI_stroke_table)
-                _this.props.mother_state.AI_stroke_tables[new_stroke_id] = new_AI_stroke_table
-                console.log(el_old_area.toDataURL())
+                        }, function(error){
 
-                var el_crop_area = document.createElement('canvas')
-                var ctx_crop_area = el_crop_area.getContext('2d')
+                        })
 
-                el_crop_area.width = cutxmax-cutxmin+1
-                el_crop_area.height = cutymax-cutymin+1
-                console.log(cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1)
-
-                var el_new_init_area = document.createElement('canvas')
-                var ctx_new_init_area = el_new_init_area.getContext('2d')
-                el_new_init_area.width = _this.props.mother_state.pixelwidth
-                el_new_init_area.height = _this.props.mother_state.pixelheight
-                var el_new_init_cropped_area = document.createElement('canvas')
-                var ctx_new_init_cropped_area = el_new_init_cropped_area.getContext('2d')
-                el_new_init_cropped_area.width = cutxmax-cutxmin+1
-                el_new_init_cropped_area.height = cutymax-cutymin+1
-                
-
-                var promise0 = new Promise(function(resolve, reject){
-                    ctx_new_init_area.drawImage(init_img, 0, 0)
-                    resolve('done0')
-                })
-
-                promise0.then(function(value){
-                    var promise1 = new Promise(function(resolve, reject){
-                        console.log(el_new_init_area.toDataURL())
-                        ctx_crop_area.drawImage(el_old_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
-                        ctx_new_init_cropped_area.drawImage(el_new_init_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0, cutxmax-cutxmin+1, cutymax-cutymin+1)
-                        resolve('done1')
                     })
-                    promise1.then(function(value){
-                        console.log(el_new_init_cropped_area.toDataURL())
-                        _this.props.mother_state.layer_img = el_new_init_cropped_area.toDataURL()
-                        _this.props.mother_state.area_img = el_crop_area.toDataURL()
-                        console.log(el_crop_area.toDataURL())
-                        new_undo_obj['layer_img'] = el_new_init_cropped_area.toDataURL()
-                        new_undo_obj['area_img'] = el_crop_area.toDataURL()
-                    }, function(error){
-    
-                    })
-
-                })
-
-                
-
-                
-
-                
-                // var newinitData = ctx_new_init_area.getImageData(0,0,el_area.width, el_area.height)
-
-                // // for(var i=0; i<newinitData.data.length; i+=4){
-                // //     if(newData.data[i+3]!=0){
-                // //         newinitData.data[i+3]=0
-                // //     }
-                // // }
-                // ctx_new_init_area.putImageData(newinitData, 0, 0)
-                
-
-                
-                // current - change area_img
-                
-                // undo objs - change area_img
-
-                
-                new_undo_obj['stroke_id'] = new_stroke_id
-                new_undo_obj['new_AI_stroke_id'] = new_AI_stroke_id
-                
-
-                
-                _this.props.mother_state.undo_states.push(new_undo_obj)
-                if(_this.props.mother_state.undo_states.length>2000){
-                    _this.props.mother_state.undo_states.shift();
-                }
-                for(var i in _this.props.mother_state.redo_states){
-                    if(_this.props.mother_state.redo_states[i]['type']=='ai_gen'){
-                        var stroke_id = _this.props.mother_state.redo_states[i]['stroke_id']
-                        for(var j in _this.props.mother_state.AI_intermediate_objs){
-                            if(_this.props.mother_state.AI_intermediate_objs[j]['stroke_id']==stroke_id){
-                                delete _this.props.mother_state.AI_intermediate_objs[j]
-                            }
-                        }
-                        delete _this.props.mother_state.AI_stroke_tables[stroke_id]
-                    }
-                } 
-    
-    
-                _this.props.mother_this.setState({action:'idle', stroke_id: new_stroke_id, AI_stroke_id:new_AI_stroke_id, redo_states:[]}, function(){
-                    ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
-                })
-
+                // }
+                console.log('here4')
             }
+
+                
+            // }
+            // console.log(new_AI_stroke_table)
+            _this.props.mother_state.AI_stroke_tables[new_stroke_id] = new_AI_stroke_table
+            console.log(el_old_area.toDataURL())
+
+            
+
+            
+
+            
+
+            
+            // var newinitData = ctx_new_init_area.getImageData(0,0,el_area.width, el_area.height)
+
+            // // for(var i=0; i<newinitData.data.length; i+=4){
+            // //     if(newData.data[i+3]!=0){
+            // //         newinitData.data[i+3]=0
+            // //     }
+            // // }
+            // ctx_new_init_area.putImageData(newinitData, 0, 0)
+            
+
+            
+            // current - change area_img
+            
+            // undo objs - change area_img
+
+            
+            new_undo_obj['stroke_id'] = new_stroke_id
+            new_undo_obj['AI_stroke_id'] = 0
+            new_undo_obj['last_latents'] = _this.props.mother_state.AI_intermediate_objs[cur_id].latents
+
+            
+            _this.props.mother_state.undo_states.push(new_undo_obj)
+            if(_this.props.mother_state.undo_states.length>2000){
+                _this.props.mother_state.undo_states.shift();
+            }
+            for(var i in _this.props.mother_state.redo_states){
+                if(_this.props.mother_state.redo_states[i]['type']=='ai_gen'){
+                    var stroke_id = _this.props.mother_state.redo_states[i]['stroke_id']
+                    for(var j in _this.props.mother_state.AI_intermediate_objs){
+                        if(_this.props.mother_state.AI_intermediate_objs[j]['stroke_id']==stroke_id){
+                            delete _this.props.mother_state.AI_intermediate_objs[j]
+                        }
+                    }
+                    delete _this.props.mother_state.AI_stroke_tables[stroke_id]
+                }
+            } 
+
+
+            _this.props.mother_this.setState({action:'idle', stroke_id: new_stroke_id, AI_stroke_id:0, redo_states:[], last_latents: _this.props.mother_state.AI_intermediate_objs[cur_id].latents}, function(){
+                ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
+            })
+
+            
 
             
         }
@@ -814,17 +895,24 @@ class AIDrawCanvas extends React.Component{
 
         var old_img = new Image;
         old_img.src = this.props.mother_state.area_img
+        var last_img = undefined
         console.log(old_img.src)
         old_img.onload = function(){
             ctx_old_area.drawImage(old_img, cutxmin, cutymin)
             var oldData = ctx_old_area.getImageData(0,0,el_old_area.width, el_old_area.height)
+            var oldData_origin = ctx_old_area.getImageData(0,0,el_old_area.width, el_old_area.height)
             var newData = ctx_area.getImageData(0,0,el_area.width, el_area.height)
+
+            
 
             for(var i=0; i<oldData.data.length; i+=4){
                 if(newData.data[i+3]!=0){
                     oldData.data[i+3]=0
                 }
             }
+
+            
+
             ctx_old_area.putImageData(oldData, 0, 0)
             console.log(el_old_area.toDataURL())
 
@@ -837,6 +925,35 @@ class AIDrawCanvas extends React.Component{
             var new_AI_stroke_table = []
             var new_undo_obj = JSON.parse(JSON.stringify(_this.props.mother_state.undo_states[_this.props.mother_state.undo_states.length-1]))
             console.log(new_undo_obj)
+
+            if(_this.props.mother_state.last_img!=undefined){
+                last_img = new Image;
+                last_img.src = _this.props.mother_state.last_img
+                last_img.onload = function(){
+                    var el_last_area = document.createElement('canvas')
+                    var ctx_last_area = el_last_area.getContext('2d');
+                    el_last_area.width = _this.props.mother_state.pixelwidth//cutxmax-cutxmin+1
+                    el_last_area.height = _this.props.mother_state.pixelheight//cutymax-cutymin+1
+                    ctx_last_area.drawImage(last_img, cutxmin, cutymin)
+                    var lastData = ctx_last_area.getImageData(0,0, el_last_area.width, el_last_area.height)
+                    
+                    for(var i=0; i<oldData.data.length; i+=4){
+                        if(newData.data[i+3]!=0){
+                            if(oldData_origin.data[i+3]!=0){
+                                lastData.data[i+3]=0
+                            }
+                        }
+                    }
+                    ctx_last_area.putImageData(lastData, 0, 0)
+                    var el_crop_last_area = document.createElement('canvas')
+                    var ctx_crop_last_area = el_crop_last_area.getContext('2d');
+                    el_crop_last_area.width = cutxmax-cutxmin+1
+                    el_crop_last_area.height = cutymax-cutymin+1
+                    ctx_crop_last_area.drawImage(el_last_area, cutxmin, cutymin, cutxmax-cutxmin+1, cutymax-cutymin+1, 0,0,cutxmax-cutxmin+1, cutymax-cutymin+1)
+                    new_undo_obj['last_img'] = el_crop_last_area.toDataURL()
+                    _this.props.mother_state.last_img = el_crop_last_area.toDataURL()
+                }
+            }
 
             var init_img = new Image;
             init_img.src = new_undo_obj.layer.image
@@ -899,7 +1016,7 @@ class AIDrawCanvas extends React.Component{
                             new_AI_stroke_table[this.cur_AI_stroke_id][this.obj_id_idx] = this.new_obj_id
                             // new_AI_stroke_table[this.cur_AI_stroke_id].push(this.new_obj_id)
 
-                            if(new_obj_c.gen_tick==_this.props.mother_state.gen_tick && this.cur_AI_stroke_id==_this.props.mother_state.AI_stroke_id){
+                            if(new_obj_c.gen_tick==_this.props.mother_state.gen_tick+1 && this.cur_AI_stroke_id==_this.props.mother_state.AI_stroke_id){
                                 // change the current view
                                 console.log('is it gone through?', el_update_area.toDataURL())
                                 var canvas = document.getElementById('sketchpad_canvas_'+_this.props.mother_state.layers[_this.props.mother_state.current_layer].layer_id)
@@ -934,6 +1051,8 @@ class AIDrawCanvas extends React.Component{
                     _this.props.mother_state.area_img = el_crop_area.toDataURL()
                     console.log(el_crop_area.toDataURL())
                     new_undo_obj['area_img'] = el_crop_area.toDataURL()
+
+                    
                 }, function(error){
 
                 })
@@ -1029,8 +1148,8 @@ class AIDrawCanvas extends React.Component{
 
             console.log(cutxmax, cutxmin, cutymax, cutymin)
 
-            var x_add = 256//parseInt(Math.min((cutxmax-cutxmin)*0.1, 50))
-            var y_add = 256//parseInt(Math.min((cutymax-cutymin)*0.1, 50))
+            var x_add = 256 //parseInt((cutxmax-cutxmin)*0.25) // 256
+            var y_add = 256 //parseInt((cutymax-cutymin)*0.25) // 256
             cutxmax = Math.min(cutxmax+x_add, this.props.mother_state.pixelwidth-1)
             cutxmin = Math.max(cutxmin-x_add, 0)
             cutymax = Math.min(cutymax+y_add, this.props.mother_state.pixelheight-1)
@@ -1106,6 +1225,7 @@ class AIDrawCanvas extends React.Component{
             layer_img=this.props.mother_state.layer_img
             console.log(area_img, 'area_img')
             console.log(layer_img, 'layer_img')
+            console.log(this.props.mother_state.last_img, 'last_img')
             seed=this.props.mother_state.seed
             
             var new_gen = false
@@ -1161,12 +1281,15 @@ class AIDrawCanvas extends React.Component{
         if(single_stroke_ratio == undefined){
             single_stroke_ratio = this.props.mother_state.single_stroke_ratio
         }
+        console.log(this.props.mother_state.selected_prompt, this.props.mother_state.prompts)
         var sent_data = {
             'stroke_id': this.props.mother_state.stroke_id,
             'gen_tick': gen_tick,
             'steps': this.props.mother_state.gen_steps, 
             'seed': seed,
             'layer_img':layer_img, 
+            'last_img': this.props.mother_state.last_img,
+            'last_latents': this.props.mother_state.last_latents,
             'area_img':area_img, 
             'gen_duration': Math.max(parseInt(single_stroke_ratio/100*this.props.mother_state.gen_steps), 1),
             'latents': this.props.mother_state.latents,
@@ -1200,6 +1323,8 @@ class AIDrawCanvas extends React.Component{
                 area_img: area_img,
                 layer_img: layer_img,
                 seed: seed,
+                last_img: undefined,
+                last_latent: undefined,
                 // cutxmin: new_cutxmin,
                 // cutxmax: new_cutxmax,
                 // cutymin: new_cutymin,
@@ -1215,7 +1340,7 @@ class AIDrawCanvas extends React.Component{
             
             
 
-            _this.props.mother_this.setState({gen_tick: gen_tick, gen_start: true, seed:seed, layer_img: layer_img, area_img: area_img, cutxmin: new_cutxmin, cutymin: new_cutymin, cutxmax: new_cutxmax, cutymax: new_cutymax}, function(){
+            _this.props.mother_this.setState({gen_tick: gen_tick, gen_start: true, seed:seed, layer_img: layer_img, last_latent:undefined, last_img: undefined, area_img: area_img, cutxmin: new_cutxmin, cutymin: new_cutymin, cutxmax: new_cutxmax, cutymax: new_cutymax}, function(){
                 // _this.processGen()
                 ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
             })
