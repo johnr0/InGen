@@ -13,7 +13,7 @@ pip install gevent-websocket
 First, at the root of the git folder, create a database to store logs. 
 
 ```console
-sqlite3 database.db < config.sql>
+sqlite3 database.db < config.sql
 ```
 
 Second, run the sql server.
