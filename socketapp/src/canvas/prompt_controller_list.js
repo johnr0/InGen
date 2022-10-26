@@ -23,7 +23,9 @@ class PromptControllerList extends React.Component{
         var el = document.getElementById('prompt_'+this.props.mother_state.prompts[idx]._id)
         el.style.height = 0
         el.style.height = (el.scrollHeight+1)+'px'
-        this.props.mother_this.setState({})
+        this.props.mother_this.setState({}, ()=>{
+            this.props.mother_this.storeCurrentState('Update prompt text')
+        })
     }
 
     sendUpdatePromptText(){
@@ -61,7 +63,18 @@ class PromptControllerList extends React.Component{
         }
 
         this.props.mother_state.prompts.push(prompt)
-        this.props.mother_this.setState({})
+        this.props.mother_this.setState({}, ()=>{
+            this.updatePromptBoxSize()
+            this.props.mother_this.storeCurrentState('Add prompt')
+        })
+    }
+
+    updatePromptBoxSize(){
+        for(var i in this.props.mother_state.prompts){
+            var el = document.getElementById('prompt_'+this.props.mother_state.prompts[i]._id)
+            el.style.height = 0
+            el.style.height = (el.scrollHeight+1)+'px'
+        }
     }
 
     deletePrompt(idx, e){
@@ -98,7 +111,10 @@ class PromptControllerList extends React.Component{
         }
         this.props.mother_state.prompts.splice(idx, 1)
         this.props.mother_this.setState({selected_prompt})
-        this.setState({})
+        this.setState({}, ()=>{
+            this.props.mother_this.storeCurrentState('Delete prompt')
+            this.updatePromptBoxSize()
+        })
     }
 
     changePromptType(idx, e){

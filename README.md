@@ -1,17 +1,36 @@
-# react-flask-socketio
-This is a base code for testing websocket connection between python flask with socketio as Server and react Webapp as client
+# PromptPaint Interface that supports in-generation interaction with visually steerable prompts. 
 
-Run server.py (localhost:5000) <br />
-Go to socketapp, Open CMD and type "npm start" <br />
-The data sent from python server is being displayed in the browser <br />
-Click on "Start/Stop" to start or stop sending data from the server <br />
-
-<br />
 <br />
 ## Requirements
-Requires Python 3+
+Requires Python 3+, sqlite3
 <br />
 npm i socket.io-client <br />
 
 pip install Flask-SocketIO <br />
-pip install gevent-websocket
+pip install gevent-websocket 
+
+## Running the server
+First, at the root of the git folder, create a database to store logs. 
+
+```console
+sqlite3 database.db < config.sql>
+```
+
+Second, run the sql server.
+```console
+python sql_server.py
+```
+
+Third, run a google colab-based ML server (you might need pro account): [![Open In Colab]](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/johnr0/InGen/blob/master/InGen_Server.ipynb)<br />
+<br />
+
+Fourth, copy ngrok url from the colab code (in the cell with title "Initiate Ngrok."), then paste that to ngrok variable in socketapp/src/canvas/ngrok.js.<br />
+<br />
+
+Fifth, run the local server.<br />
+```console
+cd socketapp
+npm run start
+```
+
+Enjoy the interface!

@@ -21,3 +21,5 @@
 /socketapp/npm-debug.log*
 /socketapp/yarn-debug.log*
 /socketapp/yarn-error.log*
+
+*.db

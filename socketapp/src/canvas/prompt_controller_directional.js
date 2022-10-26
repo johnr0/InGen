@@ -11,7 +11,9 @@ class PromptControllerDirectional extends React.Component{
         el = document.getElementById('prompt_directional_'+type+'_'+this.props.mother_state.directional_prompts[idx]._id)
         this.props.mother_state.directional_prompts[idx]['prompt'+type] = cur_input
 
-        this.props.mother_this.setState({})
+        this.props.mother_this.setState({}, ()=>{
+            this.props.mother_this.storeCurrentState('Update directional prompt text')
+        })
         el.style.height = 0
         el.style.height = (el.scrollHeight+1)+'px'
     }
@@ -46,6 +48,7 @@ class PromptControllerDirectional extends React.Component{
             this.props.mother_this.AIDrawCanvas.current.socket.emit("directional_prompts_update", send_data)
             var _this = this
             this.setState({prompt_update_tick: true}, function(){
+                _this.props.mother_this.storeCurrentState('Update directional prompt slider')
                 setTimeout(function(){
                     _this.setState({prompt_update_tick: false})
                 }, 200)
@@ -68,7 +71,9 @@ class PromptControllerDirectional extends React.Component{
 
     deletePrompt(idx){
         this.props.mother_state.directional_prompts.splice(idx, 1)
-        this.props.mother_this.setState({})
+        this.props.mother_this.setState({}, ()=>{
+            this.props.mother_this.storeCurrentState('Delete directional prompt')
+        })
     }
 
     addNewPrompt(){
@@ -83,7 +88,9 @@ class PromptControllerDirectional extends React.Component{
             value: 0,
         }
         this.props.mother_state.directional_prompts.push(dir_prompt)
-        this.props.mother_this.setState({})
+        this.props.mother_this.setState({}, ()=>{
+            this.props.mother_this.storeCurrentState('Add directional prompt')
+        })
     }
 
     renderDirectional(){

@@ -21,7 +21,9 @@ class PromptBrushConfig extends React.Component{
                 })
             }
         }
-        this.props.mother_this.setState({})
+        this.props.mother_this.setState({}, ()=>{
+            this.props.mother_this.storeCurrentState('Update '+type)
+        })
     }
 
     sizeOn(e){

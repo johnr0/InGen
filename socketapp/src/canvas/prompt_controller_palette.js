@@ -54,6 +54,7 @@ class PromptControllerPalette extends React.Component{
         }
         var _this = this
         this.props.mother_this.setState({selected_prompt:selected_prompt}, function(){
+            _this.props.mother_this.storeCurrentState('Update prompt palette target')
             _this.sendUpdatePromptText()
         })
     }
@@ -206,6 +207,7 @@ class PromptControllerPalette extends React.Component{
                 })
                 var _this = this
                 this.setState({prompt_update_tick: true}, function(){
+                    
                     setTimeout(function(){
                         _this.setState({prompt_update_tick: false})
                     }, 200)
@@ -326,7 +328,9 @@ class PromptControllerPalette extends React.Component{
             if(val.indexOf(this.state.current_prompt)==-1){
                 if(this.combineCheck(this.props.mother_state.prompt_groups[idx])==false){
                     this.props.mother_state.prompt_groups[idx].push(this.state.current_prompt)
-                    this.props.mother_this.setState({})
+                    this.props.mother_this.setState({}, ()=>{
+                        this.props.mother_this.storeCurrentState('Update prompt palette combine3')
+                    })
                 }
                 
             }
@@ -599,12 +603,19 @@ class PromptControllerPalette extends React.Component{
                         if(cur_prompt_group.length==2){
                             if(this.combineCheck(cur_prompt_group)==false){
                                 this.props.mother_state.prompt_groups.splice(i, 1)
+                                this.props.mother_this.setState({}, ()=>{
+                                    this.props.mother_this.storeCurrentState('Update prompt palette detach2')
+                                })
+                                
                             }
                             
                         }else if(cur_prompt_group.length==3){
                             // if some prompts paths goes through this.. skip
                             if(this.combineCheck(cur_prompt_group)==false){
                                 this.props.mother_state.prompt_groups[i].splice(cur_prompt_group.indexOf(this.state.current_prompt),1)
+                                this.props.mother_this.setState({}, ()=>{
+                                    this.props.mother_this.storeCurrentState('Update prompt palette detach3')
+                                })
                             }
 
                             // this.props.mother_state.prompt_groups[i].splice(cur_prompt_group.indexOf(this.state.current_prompt),1)
@@ -615,7 +626,9 @@ class PromptControllerPalette extends React.Component{
                 }
                 if(already_included==false){
                     this.props.mother_state.prompt_groups.push([idx, this.state.current_prompt])
-                    this.props.mother_this.setState({})
+                    this.props.mother_this.setState({}, ()=>{
+                        this.props.mother_this.storeCurrentState('Update prompt palette combine2')
+                    })
                 }
             }
         }

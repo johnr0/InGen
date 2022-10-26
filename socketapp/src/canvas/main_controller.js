@@ -75,6 +75,11 @@ class MainController extends Component{
                 onClick={this.changeControlState.bind(this, 'AI')}>
                 <span className={'select_disabled'}>AI</span>
             </div>
+
+            <div  className='controller_button' style={{color: '#cccccc'}}
+                onClick={this.props.mother_this.storeWholeState.bind(this.props.mother_this)}>
+                <i className='controller_button_icon fa fa-save'></i>
+            </div>
             {/* <div  className='controller_button' style={{color: (this.props.mother_state.control_state=='content-stamp')?'white':basecolor}}
                 onClick={this.changeControlState.bind(this, 'content-stamp')}>
                 <i style={{fontSize:'25px', verticalAlign:'bottom'}} className='controller_button_icon fa fa-stamp'></i>

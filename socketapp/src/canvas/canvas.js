@@ -7,6 +7,7 @@ import PromptController from './prompt_controller'
 import AIDrawCanvas from './AI_draw_canvas'
 import { e, i, rightArithShift } from 'mathjs'
 import GenerationController from './generation_controller'
+import axios from 'axios'
 
 
 class Canvas extends React.Component {
@@ -265,6 +266,68 @@ class Canvas extends React.Component {
                 
             }
         })
+
+        var user = this.gup('user')
+        if(user===null){
+            user = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        }
+        this.setState({user}, () => {
+            this.getUserData(user)
+            
+        })
+    }
+
+    getUserData(user){
+        var _this = this
+        axios.post('http://localhost:5000/api/retrieveLatest', {user:user})
+        .then((response)=>{
+            console.log(response.data)
+            this.setState(response.data['result'], ()=>{
+                // TODO recover layers... 
+                var layers = this.state.layers
+                for(var i in layers){
+                    console.log(i)
+                    var layer = layers[i]
+                    var canvas = document.getElementById('sketchpad_canvas_'+layer.layer_id)
+                    var ctx = canvas.getContext('2d')
+                    var img = new Image;
+                    img.ctx = ctx
+                    img.onload = function(){
+                        console.log(this )
+                        this.ctx.drawImage(this, 0, 0)
+                    }
+                    img.src = layer.image
+                }
+                for(var i in this.state.prompts){
+                    var el = document.getElementById('prompt_'+this.state.prompts[i]._id)
+                    el.style.height = 0
+                    el.style.height = (el.scrollHeight+1)+'px'
+                }
+                // setInterval(this.storeWholeState.bind(this), 10000)
+            })
+        }).catch((error)=>{
+            // setInterval(this.storeWholeState.bind(this), 10000)
+        })
+    }
+
+    gup( name, url ) {
+        if (!url) url = window.location.href;
+        name = name.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
+        var regexS = "[\\?&]"+name+"=([^&#]*)";
+        var regex = new RegExp( regexS );
+        var results = regex.exec( url );
+        return results == null ? null : results[1];
+    }
+
+    storeCurrentState(action=''){
+        axios.post('http://localhost:5000/api/storeEvent', {user:this.state.user, action})
+    }
+
+    storeWholeState(action=''){
+        if(window.confirm('Do you want to store the current state of canvas?')){
+            axios.post('http://localhost:5000/api/storeState', {user:this.state.user, c_state:this.state})
+        }
+        
     }
 
     setboardlength(){
@@ -560,6 +623,7 @@ class Canvas extends React.Component {
     }
 
     undo(){
+        var undo_append = ''
         console.log(this.state.undo_states, this.state.redo_states, this.state.gen_tick)
         var skip_redo = false
         if(this.state.undo_states.length>0){
@@ -626,6 +690,7 @@ class Canvas extends React.Component {
                 this.state.current_layer = undo_obj.current_layer
 
             }else if(undo_obj.type=='ai_gen'){
+                undo_append = ' AI'
                 console.log(this.state.stroke_id)
                 // TODO if generation is being done, stop it
                 console.log(this.state.gen_tick, this.state.layer_img)
@@ -748,7 +813,9 @@ class Canvas extends React.Component {
                 this.state.redo_states.push(redo_obj)
             }
             
-            this.setState({})
+            this.setState({}, ()=>{
+                this.storeCurrentState('undo'+undo_append)
+            })
         }
         
     }
@@ -757,11 +824,13 @@ class Canvas extends React.Component {
         console.log(this.state.undo_states, this.state.redo_states)
         var skip_undo = false
         var undo_obj
+        var redo_append = ''
 
         if(this.state.undo_states.length>0){
             var last_undo_obj = this.state.undo_states[this.state.undo_states.length-1]
             
             if(last_undo_obj.type=='ai_gen'){
+                redo_append = ' AI'
                 if(this.state.gen_tick!=-1 && this.state.gen_tick<this.state.AI_stroke_tables[last_undo_obj.stroke_id][last_undo_obj.AI_stroke_id].length-1){
                     console.log('stuckingen')
 
@@ -894,6 +963,7 @@ class Canvas extends React.Component {
                 this.state.current_layer = redo_obj.current_layer
 
             }else if(redo_obj.type == 'ai_gen'){
+                redo_append = ' AI'
                 undo_obj = JSON.parse(JSON.stringify(redo_obj))
                 this.state.stroke_id=redo_obj.stroke_id
                 this.state.AI_stroke_id = redo_obj.AI_stroke_id
@@ -951,6 +1021,7 @@ class Canvas extends React.Component {
             var _this = this
             this.setState({}, function(){
                 _this.PromptController.current.Palette.current.draw3DMix()
+                _this.storeCurrentState('redo'+redo_append)
             })
         }
         
@@ -1109,7 +1180,9 @@ class Canvas extends React.Component {
         // }
         
         // TODO add functions to update?
-        this.setState({action:'idle', brush_cur:undefined, cur_colored_brush_img: undefined, brush_pre_canvas: undefined})
+        this.setState({action:'idle', brush_cur:undefined, cur_colored_brush_img: undefined, brush_pre_canvas: undefined}, ()=>{
+            this.storeCurrentState('brush')
+        })
         
         
     }
@@ -1250,6 +1323,7 @@ class Canvas extends React.Component {
             var el = document.getElementById('sketchpad_canvas_'+_this.state.layers[_this.state.current_layer].layer_id)
             var ctx = el.getContext('2d');
             ctx.globalCompositeOperation ='source-over'
+            this.storeCurrentState('erase')
         })
     }
 
@@ -1292,9 +1366,13 @@ class Canvas extends React.Component {
             ctx.stroke()
             ctx.fill();
           
-            this.setState({action:'idle', lasso_img:canvas})
+            this.setState({action:'idle', lasso_img:canvas}, ()=>{
+                this.storeCurrentState('lasso')
+            })
         }else{
-            this.setState({action:'idle', lasso_img:undefined, lasso:[]})
+            this.setState({action:'idle', lasso_img:undefined, lasso:[]}, ()=>{
+                this.storeCurrentState('unlasso')
+            })
         }
         
     }
@@ -1464,13 +1542,17 @@ class Canvas extends React.Component {
             new_lasso.getContext('2d').drawImage(this.state.lasso_img, 0, 0)
             
             // TODO add a function?
-            this.setState({action:'idle', move_layer_init_pos: undefined, adjust_pre_canvas: undefined, lassoed_canvas:new_l_canvas, lasso_img: new_lasso})
+            this.setState({action:'idle', move_layer_init_pos: undefined, adjust_pre_canvas: undefined, lassoed_canvas:new_l_canvas, lasso_img: new_lasso}, ()=>{
+                this.storeCurrentState('movelayer')
+            })
         }else{
             var ctx = el.getContext('2d');
             var ret = this.getCanvasBoundingBox(ctx)
             
             // TODO add a function?
-            this.setState({action:'idle', move_layer_init_pos: undefined, adjust_pre_canvas: undefined, lassoed_canvas:new_l_canvas, nonlasso_ret: ret})
+            this.setState({action:'idle', move_layer_init_pos: undefined, adjust_pre_canvas: undefined, lassoed_canvas:new_l_canvas, nonlasso_ret: ret}, ()=>{
+                this.storeCurrentState('movelayer')
+            })
         }
         
         
@@ -1652,14 +1734,18 @@ class Canvas extends React.Component {
             }
             
             // TODO add a function?
-            this.setState({action:'idle', rotateCenter:undefined, lasso_rot_deg: 0, lasso: new_lasso, lassoed_canvas, lasso_img: lasso_img})
+            this.setState({action:'idle', rotateCenter:undefined, lasso_rot_deg: 0, lasso: new_lasso, lassoed_canvas, lasso_img: lasso_img}, ()=>{
+                this.storeCurrentState('rotatelayer')
+            })
         }else{
             // var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer]['layer_id'])
             var ctx = el.getContext('2d');
             var ret = this.getCanvasBoundingBox(ctx)
             
             // TODO add a function?
-            this.setState({action:'idle', rotateCenter:undefined, lasso_rot_deg: 0, nonlasso_ret:ret, lassoed_canvas: lassoed_canvas})
+            this.setState({action:'idle', rotateCenter:undefined, lasso_rot_deg: 0, nonlasso_ret:ret, lassoed_canvas: lassoed_canvas}, ()=>{
+                this.storeCurrentState('rotatelayer')
+            })
         }
     }
 
@@ -1928,63 +2014,6 @@ class Canvas extends React.Component {
         lassoed_canvas.width = this.state.lassoed_canvas.width
         lassoed_canvas.height = this.state.lassoed_canvas.height
 
-        // var adjust_pre_canvas = this.state.adjust_pre_canvas
-        // var adjust_pre_ctx = adjust_pre_canvas.getContext('2d');
-        // var Data_t = adjust_pre_ctx.getImageData(0,0,this.state.pixelwidth, this.state.pixelheight)
-        // var new_ratioData = this.state.origin_ratioData.slice()
-        // console.log(adjust_pre_canvas.toDataURL())
-        // console.log(Data_t.data)
-        // for(var idx=0; idx<new_ratioData.length; idx++){
-        //     if(Data_t.data[idx*4+3]>0){
-        //         var w = idx%this.state.pixelwidth 
-        //         var h = parseInt(idx/this.state.pixelwidth)
-
-        //         var new_w = w
-        //         var new_h = h
-
-        //         if(this.state.lasso_resize_direction.indexOf('n')!=-1){
-        //             var scale = (resize_ret['height']-pos[1]+init_pos[1])/resize_ret['height']
-        //             new_h = parseInt(resize_ret['bottom']+ (h-resize_ret['bottom'])/scale)
-        //         }
-        
-        //         if(this.state.lasso_resize_direction.indexOf('s')!=-1){
-        //             var scale = (resize_ret['height']+pos[1]-init_pos[1])/resize_ret['height']
-        //             new_h = parseInt(resize_ret['top']- (resize_ret['top']-h)/scale)
-        //         }
-
-        //         // if(this.state.lasso_resize_direction.indexOf('w')!=-1){
-        //         //     var scale = (resize_ret['width']-pos[0]+init_pos[0])/resize_ret['width']
-        //         //     lassoed_ctx.scale(scale, 1)
-        //         //     lassoed_ctx.translate(this.state.resize_ret['right']*(1/scale-1), 0)
-        //         // }
-        //         // if(this.state.lasso_resize_direction.indexOf('e')!=-1){
-        //         //     var scale = (resize_ret['width']+pos[0]-init_pos[0])/resize_ret['width']
-        //         //     lassoed_ctx.scale(scale, 1)
-        //         //     lassoed_ctx.translate(this.state.resize_ret['left']*(1/scale-1), 0)
-        //         // }
-
-        //         if(this.state.lasso_resize_direction.indexOf('e')!=-1){
-        //             var scale = (resize_ret['width']+pos[0]-init_pos[0])/resize_ret['width']
-        //             new_w = parseInt(resize_ret['left']+ (w-resize_ret['left'])/scale)
-        //         }
-        
-        //         if(this.state.lasso_resize_direction.indexOf('w')!=-1){
-        //             var scale = (resize_ret['width']-pos[0]+init_pos[0])/resize_ret['width']
-        //             new_w = parseInt(resize_ret['right']- (resize_ret['right']-w)/scale)
-        //         }
-        //         // console.log(new_w, new_h, w, h)
-
-
-
-        //         if(this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth] > 0){
-        //             new_ratioData[idx] = this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth]
-        //         }
-        //         // console.log(new_w+new_h*this.state.pixelwidth, this.state.moving_ratioData[new_w+new_h*this.state.pixelwidth])
-                
-        //     }
-        // }
-        // this.state.ratioData[this.state.layers[this.state.current_layer].layer_id] = new_ratioData
-
         var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer].layer_id)
         var cur_image = el.toDataURL()
         var layers = this.state.layers
@@ -2085,86 +2114,21 @@ class Canvas extends React.Component {
 
             // TODO add a function?
             this.setState({action: 'idle', lassoed_canvas: lassoed_canvas, lasso_img:lasso_img,
-            lasso_resize_direction:undefined,resize_layer_init_pos:undefined, resize_ret:undefined, init_lasso:undefined, adjust_pre_canvas:undefined})
+            lasso_resize_direction:undefined,resize_layer_init_pos:undefined, resize_ret:undefined, init_lasso:undefined, adjust_pre_canvas:undefined}, ()=>{
+                this.storeCurrentState('resizelayer')
+            })
         }else{
             var ctx = el.getContext('2d');
             var ret = this.getCanvasBoundingBox(ctx)
             
             // TODO add a function?
             this.setState({action: 'idle', lassoed_canvas: lassoed_canvas, nonlasso_ret: ret,
-            lasso_resize_direction:undefined,resize_layer_init_pos:undefined, resize_ret:undefined, init_lasso:undefined, adjust_pre_canvas:undefined})
+            lasso_resize_direction:undefined,resize_layer_init_pos:undefined, resize_ret:undefined, init_lasso:undefined, adjust_pre_canvas:undefined}, ()=>{
+                this.storeCurrentState('resizelayer')
+            })
         }
 
     }
-
-    contentStampInit(e){
-        var current_image_id = this.props.board_this.moodboard.state.current_image[0]
-        var cur_art = this.props.board_this.moodboard.state.arts[current_image_id].file
-        var im= new Image;
-        var _this = this
-        var p = _this.getCurrentMouseOnBoard(e)
-        im.onload = function(){
-            // var el = document.getElementById('sketchpad_canvas_'+_this.state.layers[_this.state.current_layer])
-            // var cur_image = el.toDataURL()
-            _this.setState({content_stamp_img: im, content_stamp_ratio:im.height/im.width, content_stamp_init_pos: p, content_stamp_cur_pos: p, action: 'content-stamp'})
-
-            // var w = 200
-            // var h = im.height * w /im.width
-            // el.getContext('2d').drawImage(im, p[0]-w/2, p[1]-h/2, w, h)
-            // _this.props.board_this.updateALayerImage(_this.state.current_layer, _this.state.layers[_this.state.current_layer], el.toDataURL(), cur_image)
-
-        }
-        im.src = cur_art
-    }
-
-    contentStampMove(e){
-        var p = this.getCurrentMouseOnBoard(e)
-        this.setState({content_stamp_cur_pos: p})
-    }
-
-    contentStampEnd(e){
-        // var smallx = (this.state.content_stamp_init_pos[0]<this.state.content_stamp_cur_pos[0])?this.state.content_stamp_init_pos[0]:this.state.content_stamp_cur_pos[0]
-        // var bigx = (this.state.content_stamp_init_pos[0]>=this.state.content_stamp_cur_pos[0])?this.state.content_stamp_init_pos[0]:this.state.content_stamp_cur_pos[0]
-        // var smally = (this.state.content_stamp_init_pos[1]<this.state.content_stamp_cur_pos[1])?this.state.content_stamp_init_pos[1]:this.state.content_stamp_cur_pos[1]
-        // var bigy = (this.state.content_stamp_init_pos[1]>=this.state.content_stamp_cur_pos[1])?this.state.content_stamp_init_pos[1]:this.state.content_stamp_cur_pos[1]
-
-        var width = Math.abs(this.state.content_stamp_init_pos[0]-this.state.content_stamp_cur_pos[0])
-        var height = Math.abs(this.state.content_stamp_init_pos[1]-this.state.content_stamp_cur_pos[1])
-
-        var cur_ratio = height/width
-        if(cur_ratio > this.state.content_stamp_ratio){
-            // keep width
-            height = this.state.content_stamp_ratio * width
-        }else{
-            // keep height
-            width = height / this.state.content_stamp_ratio
-        }
-        
-        var startx, starty
-
-        if(this.state.content_stamp_init_pos[0]>this.state.content_stamp_cur_pos[0]){
-            startx = this.state.content_stamp_init_pos[0]-width
-        }else{
-            startx = this.state.content_stamp_init_pos[0]
-        }
-
-        if(this.state.content_stamp_init_pos[1]>this.state.content_stamp_cur_pos[1]){
-            starty = this.state.content_stamp_init_pos[1]-height
-        }else{
-            starty = this.state.content_stamp_init_pos[1]
-        }
-
-        var el = document.getElementById('sketchpad_canvas_'+this.state.layers[this.state.current_layer])
-        var cur_image = el.toDataURL()
-        el.getContext('2d').drawImage(this.state.content_stamp_img, startx, starty, width, height)
-        
-        // TODO add a functions?
-        this.setState({control_state:'move-layer', action:'idle'}, function(){
-            this.initializeMoveLayer()
-        })
-        
-    }
-
 
 
     renderCanvas(){

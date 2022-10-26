@@ -1,6 +1,7 @@
 import { thomsonCrossSectionDependencies } from 'mathjs';
 import React from 'react'
 import io from 'socket.io-client';
+import ngrok from './ngrok'
 
 class AIDrawCanvas extends React.Component{
 
@@ -17,7 +18,7 @@ class AIDrawCanvas extends React.Component{
         this.props.mother_this.setState({})
 
         // var sensorEndpoint = "http://localhost:5001"
-        this.socket = io('http://b2ab-35-236-184-78.ngrok.io/', {
+        this.socket = io(ngrok, {
             reconnection: true,
             maxHttpBufferSize: 1e8,
             // transports: ['websocket'],
@@ -86,9 +87,17 @@ class AIDrawCanvas extends React.Component{
                             _this.props.mother_state.AI_intermediate_objs[intermediate_id] = obj
                             
                             if(message['gen_tick']==_this.props.mother_state.gen_steps){
-                                _this.props.mother_this.setState({gen_tick:-1, gen_start: false, stroke_id:undefined})
+                                _this.props.mother_this.setState({gen_tick:-1, gen_start: false, stroke_id:undefined}, ()=>{
+                                    _this.props.mother_this.storeCurrentState('AI generation end')
+                                })
                             }else if(message['gen_tick']>=_this.props.mother_state.end_gen_tick){
-                                _this.props.mother_this.setState({gen_start: false})
+                                _this.props.mother_this.setState({gen_start: false}, ()=>{
+                                    _this.props.mother_this.storeCurrentState('AI generation pause')
+                                })
+                            }else{
+                                _this.props.mother_this.setState({}, ()=>{
+                                    _this.props.mother_this.storeCurrentState('AI generation in process')
+                                })
                             }
                         }
                         img.src = message.data
@@ -101,6 +110,17 @@ class AIDrawCanvas extends React.Component{
             }
 
             console.log('intermediate gen')
+        })
+
+        this.socket.on('gen_failed', message =>{
+            alert('Error on the AI side!')
+            if(this.props.mother_state.gen_tick==0){
+                this.props.mother_this.setState({gen_start:false}, ()=>{
+                    this.props.mother_this.undo();
+                })
+            }else{
+                this.props.mother_this.setState({gen_start:false})
+            }
         })
         this.socket.on("connect", message => {
             
@@ -166,9 +186,15 @@ class AIDrawCanvas extends React.Component{
 
     AIbrushInit_auto(e){
         if(this.props.mother_state.stroke_id!=undefined && this.props.mother_state.AI_brush_mode=='draw'){
+            alert('You cannot draw new area to generate while seeing the AI generation process.')
             return
         }
         if(this.props.mother_state.stroke_id==undefined && (this.props.mother_state.AI_brush_mode=='erase' || this.props.mother_state.AI_brush_mode=='revise')){
+            alert('You cannot erase or revise a part of AI generation only when you are seeing the AI generation process.')
+            return
+        }
+        if(this.props.mother_state.stroke_id!=undefined && this.props.mother_state.gen_start && (this.props.mother_state.AI_brush_mode=='erase' || this.props.mother_state.AI_brush_mode=='revise')){
+            alert('You cannot erase or revise a part of AI generation while AI is generating.')
             return
         }
         var brush_canvas = document.createElement('canvas')
@@ -858,6 +884,7 @@ class AIDrawCanvas extends React.Component{
 
             _this.props.mother_this.setState({action:'idle', stroke_id: new_stroke_id, AI_stroke_id:0, redo_states:[], last_latents: _this.props.mother_state.AI_intermediate_objs[cur_id].latents}, function(){
                 ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
+                _this.props.mother_this.storeCurrentState('Revise AI generation')
             })
 
             
@@ -1084,6 +1111,7 @@ class AIDrawCanvas extends React.Component{
     
                 _this.props.mother_this.setState({action:'idle', stroke_id: new_stroke_id, AI_stroke_id:new_AI_stroke_id, redo_states:[]}, function(){
                     ctx_area.clearRect(0,0,_this.props.mother_state.pixelwidth, _this.props.mother_state.pixelheight)
+                    _this.props.mother_this.storeCurrentState('Remove AI generation')
                 })
 
             }
@@ -1101,9 +1129,12 @@ class AIDrawCanvas extends React.Component{
         this.props.mother_this.setState({action:'idle'})
         // setting the overcoat
 
+        var action_record = ''
+
         var area_img, layer_img, seed, new_cutxmin, new_cutxmax, new_cutymin, new_cutymax
 
         if(gen_tick == 0 && regen==false){
+            action_record = 'initial AI generation'
             var el_area = document.getElementById('AI_area_canvas')
             var ctx_area = el_area.getContext('2d');
 
@@ -1220,7 +1251,7 @@ class AIDrawCanvas extends React.Component{
             this.props.mother_state.AI_stroke_id = 0
 
         }else{
-            
+            action_record = 'redo AI generation'
             area_img=this.props.mother_state.area_img
             layer_img=this.props.mother_state.layer_img
             console.log(area_img, 'area_img')
@@ -1364,7 +1395,9 @@ class AIDrawCanvas extends React.Component{
                 delete this.props.mother_state.AI_stroke_tables[stroke_id]
             }
         }  
-        this.props.mother_this.setState({end_gen_tick: end_gen_tick, redo_states: []})
+        this.props.mother_this.setState({end_gen_tick: end_gen_tick, redo_states: []}, ()=>{
+            this.props.mother_this.storeCurrentState(action_record)
+        })
     
         
 
