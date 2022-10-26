@@ -21,7 +21,7 @@ Second, run the sql server.
 python sql_server.py
 ```
 
-Third, run a google colab-based ML server (you might need pro account): [![Open In Colab]](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/johnr0/InGen/blob/master/InGen_Server.ipynb)<br />
+Third, run a google colab-based ML server (you might need pro account): [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/johnr0/InGen/blob/master/InGen_Server.ipynb)<br />
 <br />
 
 Fourth, copy ngrok url from the colab code (in the cell with title "Initiate Ngrok."), then paste that to ngrok variable in socketapp/src/canvas/ngrok.js.<br />
