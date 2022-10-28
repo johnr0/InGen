@@ -185,7 +185,7 @@ class AIDrawCanvas extends React.Component{
     }
 
     AIbrushInit_auto(e){
-        if(this.props.mother_state.stroke_id!=undefined && this.props.mother_state.AI_brush_mode=='draw'){
+        if(this.props.mother_state.stroke_id!=undefined && this.props.mother_state.AI_brush_mode=='draw' && this.props.mother_state.multi_strokes==false){
             alert('You cannot draw new area to generate while seeing the AI generation process.')
             return
         }

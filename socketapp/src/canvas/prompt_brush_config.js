@@ -54,6 +54,17 @@ class PromptBrushConfig extends React.Component{
         this.props.mother_this.setState({AI_brush_mode:mode})
     }
 
+    paintAll(){
+        if(this.props.mother_state.selected_prompt==undefined){
+            return
+        }
+        var el = document.getElementById('AI_area_canvas')
+        var ctx = el.getContext('2d');
+        this.props.mother_state.stroke_id= Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
+        ctx.fillRect(0,0,this.props.mother_state.pixelwidth, this.props.mother_state.pixelheight)
+        this.props.mother_this.AIDrawCanvas.current.initGen2(0)
+    }
+
     render(){
         var pixelwidth = this.props.mother_state.pixelwidth
         var pixelheight = this.props.mother_state.pixelheight
@@ -84,6 +95,9 @@ class PromptBrushConfig extends React.Component{
                             </div>
                             <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='revise')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id!=undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'revise')}>
                                 <div>Revise</div> 
+                            </div>
+                            <div className='orange btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', backgroundColor:(this.props.mother_state.stroke_id==undefined)?'':'#333333'}} onPointerDown={this.paintAll.bind(this)}>
+                                <div>All</div> 
                             </div>
                         </div>
                         

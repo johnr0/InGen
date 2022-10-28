@@ -231,6 +231,11 @@ class Canvas extends React.Component {
                 //         }
                 //     }
                 // }
+            }else if(e.key=='Escape'){
+                var el = document.getElementById('AI_area_canvas')
+                var ctx = el.getContext('2d');
+                ctx.clearRect(0,0,_this.state.pixelwidth, _this.state.pixelheight)
+                _this.setState({action:'idle', stroke_id:undefined, brush_cur:undefined, AI_cur_colored_brush_img: undefined, AI_brush_pre_canvas: undefined, AI_origin_image: undefined})
             }
         })
 
