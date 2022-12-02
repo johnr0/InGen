@@ -78,13 +78,13 @@ class PromptControllerList extends React.Component{
     }
 
     deletePrompt(idx, e){
-        var spliced = false
+        var spliced = []
         for(var i=this.props.mother_state.prompt_groups.length-1; i>=0; i--){
             var prompt_group = this.props.mother_state.prompt_groups[i]
             if(prompt_group.indexOf(idx)!=-1){
                 if(prompt_group.length==2){
                     // this.props.mother_state.prompt_groups.splice(i, 1)
-                    spliced = i
+                    spliced.push(i)
                 }else if(prompt_group.length==3){
                     console.log(this.props.mother_state.prompt_groups[i].indexOf(idx))
                     this.props.mother_state.prompt_groups[i].splice(this.props.mother_state.prompt_groups[i].indexOf(idx), 1)
@@ -96,8 +96,8 @@ class PromptControllerList extends React.Component{
                 }
             }
         }
-        if(spliced != false){
-            this.props.mother_state.prompt_groups.splice(spliced, 1)
+        for(var i in spliced){
+            this.props.mother_state.prompt_groups.splice(spliced[i], 1)
         }
         var selected_prompt = this.props.mother_state.selected_prompt
         if(this.props.mother_state.selected_prompt!=undefined){
@@ -181,7 +181,7 @@ class PromptControllerList extends React.Component{
                     {val.istext && <i class="fa fa-comment" style={{fontSize:16}} ></i>}
                     {!val.istext && <i class="fa fa-image" style={{fontSize:16}} ></i>}
                 </div> */}
-                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.gen_start}>
+                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.stroke_id!=undefined}>
                     X
                 </div>
             </div>)

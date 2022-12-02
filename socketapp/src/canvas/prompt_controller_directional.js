@@ -121,7 +121,7 @@ class PromptControllerDirectional extends React.Component{
                         {!val.isBtext && <i class="fa fa-image" style={{fontSize:16}} ></i>}
                     </div>
                 </div>
-                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.gen_start}>
+                <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.stroke_id!=undefined}>
                     X
                 </div>
             </div>)

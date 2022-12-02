@@ -773,8 +773,7 @@ class PromptControllerPalette extends React.Component{
                             var xd = x1-x0
                             var yd = y1-y0
                             var d = Math.sqrt(cur_obj.selected_prompt.side[0]*cur_obj.selected_prompt.side[0]+cur_obj.selected_prompt.side[1]*cur_obj.selected_prompt.side[1])
-                            // width = width + d* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
-                            // height = height + d * Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+
                             width = width + d* Math.sign(cur_obj.selected_prompt.side[0]) *Math.abs(yd)/Math.sqrt(xd*xd+yd*yd)
                             height = height + d * Math.sign(cur_obj.selected_prompt.side[1]) * Math.abs(xd)/Math.sqrt(xd*xd+yd*yd)
                         }
