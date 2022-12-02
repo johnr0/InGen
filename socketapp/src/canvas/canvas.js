@@ -20,8 +20,8 @@ class Canvas extends React.Component {
         //control_state --> area, move, brush, erase, content_stamp, style_stamp
         // action --> move: idle, move_board
         //            brush: idle, brush
-        boardcenter: [0.5,  0.5], // the view of the board
-        boardzoom: 1,
+        boardcenter: [0.3,  0.9], // the view of the board
+        boardzoom: 0.5,
         boardlength:0, 
 
         boardheight: 0,
@@ -98,61 +98,61 @@ class Canvas extends React.Component {
 
         // prompt relevant
         prompts: [
-            {
-                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'white sheep on a plain',
-                position: [0.2,0.1],
-                color: '#ffeeee',
-                istext:true
+            // {
+            //     _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            //     prompt: 'white sheep on a plain',
+            //     position: [0.2,0.1],
+            //     color: '#ffeeee',
+            //     istext:true
 
-            },
-            {
-                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'black sheep wall',
-                position: [0.5,0.5],
-                color: '#333333',
-                istext:true
+            // },
+            // {
+            //     _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            //     prompt: 'black sheep wall',
+            //     position: [0.5,0.5],
+            //     color: '#333333',
+            //     istext:true
 
-            },
-            {
-                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'oil painting',
-                position: [0.7,0.3],
-                color: '#8888ff',
-                istext:true
+            // },
+            // {
+            //     _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            //     prompt: 'oil painting',
+            //     position: [0.7,0.3],
+            //     color: '#8888ff',
+            //     istext:true
 
-            },
-            {
-                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'a glowing outerplanet tower made of diamonds with mint color sunset behind, high resolution, rendered with unreal4, 4k, trending in art station',
-                position: [0.8,0.9],
-                color: '#a9e1ee',
-                istext:true
+            // },
+            // {
+            //     _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            //     prompt: 'a glowing outerplanet tower made of diamonds with mint color sunset behind, high resolution, rendered with unreal4, 4k, trending in art station',
+            //     position: [0.8,0.9],
+            //     color: '#a9e1ee',
+            //     istext:true
 
-            },
-            {
-                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                prompt: 'dystopian tower',
-                position: [0.8,0.8],
-                color: '#3445a9',
-                istext:true
+            // },
+            // {
+            //     _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            //     prompt: 'dystopian tower',
+            //     position: [0.8,0.8],
+            //     color: '#3445a9',
+            //     istext:true
 
-            }
+            // }
         ],
         prompt_groups: [
-            [0, 1, 2], [3, 4]
+            // [0, 1, 2], [3, 4]
         ],
         directional_prompts: [
-            {
-                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-                promptA: 'rough',
-                colorA: '#ffaaaa',
-                promptB: 'flat',
-                colorB: '#aaffaa',
-                isAtext: true,
-                isBtext: true,
-                value: 0,
-            }
+            // {
+            //     _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+            //     promptA: 'rough',
+            //     colorA: '#ffaaaa',
+            //     promptB: 'flat',
+            //     colorB: '#aaffaa',
+            //     isAtext: true,
+            //     isBtext: true,
+            //     value: 0,
+            // }
         ],
         AI_brush_mode: 'draw',
         AI_brush_size: 100,
@@ -166,7 +166,9 @@ class Canvas extends React.Component {
         ratioData: {},
         AI_stroke_tables: {},
         AI_stroke_id: -1, 
-        AI_intermediate_objs: {}
+        AI_intermediate_objs: {}, 
+
+        undo_prompts: false,
     }
 
     AIDrawCanvas = React.createRef()
@@ -209,6 +211,7 @@ class Canvas extends React.Component {
             console.log(e.key)
             if(e.key=="z"){
                 if(_this.state.control_pressed){
+                    e.preventDefault();
                     if(_this.state.shift_pressed){
                         _this.redo()
                     }else{
@@ -330,7 +333,7 @@ class Canvas extends React.Component {
 
     storeWholeState(action=''){
         if(window.confirm('Do you want to store the current state of canvas?')){
-            axios.post('http://localhost:5000/api/storeState', {user:this.state.user, c_state:this.state})
+            axios.post('http://localhost:5000/api/storeState', {user:this.state.user, c_state:this.state}, {maxContentLength: Infinity})
         }
         
     }
@@ -743,14 +746,31 @@ class Canvas extends React.Component {
                         this.state.area_img = undo_obj.area_img
                         this.state.seed = undo_obj.seed
                         this.state.overcoat_ratio = undo_obj.overcoat_ratio
-                        // this.state.prompt_groups = JSON.parse(JSON.stringify(undo_obj.prompt_groups))
+                        // 
                         
                         // this.state.cutxmin = undo_obj.cutxmin
                         // this.state.cutymin = undo_obj.cutymin
                         // this.state.cutxmax = undo_obj.cutxmax
                         // this.state.cutymax = undo_obj.cutymax
                         // this.state.gen_steps = undo_obj.gen_steps
-                        
+                        var obj_id = this.state.AI_stroke_tables[undo_obj.stroke_id][this.state.AI_stroke_id][gen_tick-1]
+                        var obj = this.state.AI_intermediate_objs[obj_id]
+                        this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+                        this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+                        this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
+                        // for(var i in obj.prompts){
+                        //     var passed = false
+                        //     for(var j in this.state.prompts){
+                        //         if(this.state.prompts[j]._id==obj.prompts[i]._id){
+                        //             passed = true
+                        //             continue
+                        //         }
+                        //     }
+                        //     if(passed){
+                        //         // this.state.prompts.push
+                        //     }
+                            
+                        // }
 
                     }
 
@@ -778,16 +798,32 @@ class Canvas extends React.Component {
                     this.state.guidance_scale = obj.guidance_scale
                     this.state.gen_steps = obj.gen_steps
                     // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
-                    this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+                    // this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
                     // this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
-                    for(var i in this.state.prompts){
-                        for(var j in obj.prompts){
-                            if(this.state.prompts[i]._id == obj.prompts[j]._id){
-                                this.state.prompts[i].prompt = obj.prompts[j].prompt
-                                continue
+
+                    if(this.state.undo_prompts){
+                        for(var i in this.state.prompts){
+                            for(var j in obj.prompts){
+                                if(this.state.prompts[i]._id == obj.prompts[j]._id){
+                                    this.state.prompts[i].prompt = obj.prompts[j].prompt
+                                    continue
+                                }
+                            }
+                        }
+
+                        for(var i in this.state.directional_prompts){
+                            for(var j in obj.directional_prompts){
+                                if(this.state.directional_prompts[i]._id == obj.directional_prompts[j]._id){
+                                    this.state.directional_prompts[i].promptA = obj.directional_prompts[j].promptA
+                                    this.state.directional_prompts[i].promptB = obj.directional_prompts[j].promptB
+                                    continue
+                                }
                             }
                         }
                     }
+                    
+                    
+                    
                     // this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
                     if(gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length){
                         this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
@@ -862,16 +898,33 @@ class Canvas extends React.Component {
                     this.state.guidance_scale = obj.guidance_scale
                     this.state.gen_steps = obj.gen_steps
                     // this.state.selected_prompt = obj.selected_prompt
-                    this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+                    
                     // this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
-                    for(var i in this.state.prompts){
-                        for(var j in obj.prompts){
-                            if(this.state.prompts[i]._id == obj.prompts[j]._id){
-                                this.state.prompts[i].prompt = obj.prompts[j].prompt
-                                continue
+
+                    if(this.state.undo_prompts){
+                        for(var i in this.state.prompts){
+                            for(var j in obj.prompts){
+                                if(this.state.prompts[i]._id == obj.prompts[j]._id){
+                                    this.state.prompts[i].prompt = obj.prompts[j].prompt
+                                    continue
+                                }
                             }
                         }
+
+                        for(var i in this.state.directional_prompts){
+                            for(var j in obj.directional_prompts){
+                                if(this.state.directional_prompts[i]._id == obj.directional_prompts[j]._id){
+                                    this.state.directional_prompts[i].promptA = obj.directional_prompts[j].promptA
+                                    this.state.directional_prompts[i].promptB = obj.directional_prompts[j].promptB
+                                    continue
+                                }
+                            }
+                        }
+                        // this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
                     }
+                    
+                    
+                    
                     // this.state.prompt_groups = obj.prompt_groups
                     obj.prompt_groups = JSON.parse(JSON.stringify(this.state.prompt_groups))
                     this.state.latents = obj.latents
@@ -1003,8 +1056,8 @@ class Canvas extends React.Component {
                 this.state.guidance_scale = obj.guidance_scale
                 this.state.gen_steps = obj.gen_steps
                 // this.state.selected_prompt = obj.selected_prompt
-                this.state.directional_prompts = obj.directional_prompts
-                // this.state.prompts = obj.prompts
+                this.state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+                this.state.prompts = JSON.parse(JSON.stringify(obj.prompts))
                 for(var i in this.state.prompts){
                     for(var j in obj.prompts){
                         if(this.state.prompts[i]._id == obj.prompts[j]._id){

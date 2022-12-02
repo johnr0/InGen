@@ -1,3 +1,3 @@
-const ngrok = '[Your ngrok url as a string]'
+const ngrok = 'http://1229-35-231-190-54.ngrok.io/'
 
 export default ngrok;

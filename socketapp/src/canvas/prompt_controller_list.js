@@ -78,13 +78,13 @@ class PromptControllerList extends React.Component{
     }
 
     deletePrompt(idx, e){
-        
+        var spliced = false
         for(var i=this.props.mother_state.prompt_groups.length-1; i>=0; i--){
             var prompt_group = this.props.mother_state.prompt_groups[i]
             if(prompt_group.indexOf(idx)!=-1){
                 if(prompt_group.length==2){
-                    this.props.mother_state.prompt_groups.splice(i, 1)
-                    
+                    // this.props.mother_state.prompt_groups.splice(i, 1)
+                    spliced = i
                 }else if(prompt_group.length==3){
                     console.log(this.props.mother_state.prompt_groups[i].indexOf(idx))
                     this.props.mother_state.prompt_groups[i].splice(this.props.mother_state.prompt_groups[i].indexOf(idx), 1)
@@ -95,6 +95,9 @@ class PromptControllerList extends React.Component{
                     this.props.mother_state.prompt_groups[i][j] = this.props.mother_state.prompt_groups[i][j] -1
                 }
             }
+        }
+        if(spliced != false){
+            this.props.mother_state.prompt_groups.splice(spliced, 1)
         }
         var selected_prompt = this.props.mother_state.selected_prompt
         if(this.props.mother_state.selected_prompt!=undefined){

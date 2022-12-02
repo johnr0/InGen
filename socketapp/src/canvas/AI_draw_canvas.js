@@ -1,4 +1,4 @@
-import { thomsonCrossSectionDependencies } from 'mathjs';
+import { isChain, thomsonCrossSectionDependencies } from 'mathjs';
 import React from 'react'
 import io from 'socket.io-client';
 import ngrok from './ngrok'
@@ -451,6 +451,9 @@ class AIDrawCanvas extends React.Component{
 
     AIbrushInit(e){
         if(this.props.mother_state.current_layer==-1 || this.props.mother_state.selected_prompt==undefined){
+            if(this.props.mother_state.selected_prompt==undefined){
+                alert('You have to first select the prompt before running generation.')
+            }
             return
         }
         this.AIbrushInit_auto(e)
@@ -1179,8 +1182,10 @@ class AIDrawCanvas extends React.Component{
 
             console.log(cutxmax, cutxmin, cutymax, cutymin)
 
-            var x_add = 256 //parseInt((cutxmax-cutxmin)*0.25) // 256
-            var y_add = 256 //parseInt((cutymax-cutymin)*0.25) // 256
+            var x_add = parseInt((cutxmax-cutxmin)*0.5) // 256
+            var y_add = parseInt((cutymax-cutymin)*0.5) // 256
+            x_add = Math.max(x_add, y_add)
+            y_add = x_add
             cutxmax = Math.min(cutxmax+x_add, this.props.mother_state.pixelwidth-1)
             cutxmin = Math.max(cutxmin-x_add, 0)
             cutymax = Math.min(cutymax+y_add, this.props.mother_state.pixelheight-1)

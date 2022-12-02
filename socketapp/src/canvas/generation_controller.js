@@ -45,8 +45,8 @@ class GenerationController extends React.Component{
         this.props.mother_state.guidance_scale = obj.guidance_scale
         this.props.mother_state.gen_steps = obj.gen_steps
         // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
-        this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
-        this.props.mother_state.prompts = obj.prompts
+        // this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+        // this.props.mother_state.prompts = obj.prompts
         this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
         this.props.mother_state.latents = obj.latents
         this.props.mother_state.cutxmin = obj.cutxmin

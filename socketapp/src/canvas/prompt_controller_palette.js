@@ -11,7 +11,8 @@ class PromptControllerPalette extends React.Component{
         current_prompt: -1,
         palette_fix: false,
 
-        prompt_update_tick: false        
+        prompt_update_tick: false,
+        log_tick: false,   
     }
 
     componentDidMount(){
@@ -54,7 +55,7 @@ class PromptControllerPalette extends React.Component{
         }
         var _this = this
         this.props.mother_this.setState({selected_prompt:selected_prompt}, function(){
-            _this.props.mother_this.storeCurrentState('Update prompt palette target')
+            
             _this.sendUpdatePromptText()
         })
     }
@@ -175,6 +176,15 @@ class PromptControllerPalette extends React.Component{
     }
 
     sendUpdatePromptText(){
+        if(this.state.log_tick==false){
+            var _this =this
+            this.setState({log_tick: true})
+            setTimeout(function(){
+                _this.props.mother_this.storeCurrentState('Update prompt palette target')
+                _this.setState({log_tick: false})
+            }, 200)
+        }
+        
 
         if(this.props.mother_state.gen_start==false && this.props.mother_state.single_stroke_ratio==0 && this.props.mother_state.stroke_id!=undefined){
             // start gen
@@ -185,6 +195,7 @@ class PromptControllerPalette extends React.Component{
 
         if(this.state.prompt_update_tick==false){
             if(this.props.mother_state.gen_start){
+                
                 console.log('prompt updated during generation')
                 var text_prompts = []
                 var text_prompt_weights = []
@@ -743,6 +754,9 @@ class PromptControllerPalette extends React.Component{
                         var height = 0
 
                         for(var p_idx in cur_obj.selected_prompt.prompts){
+                            if(this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]]==undefined){
+                                return
+                            }
                             width = width + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[0]*cur_obj.selected_prompt.weights[p_idx]
                             height = height + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[1]*cur_obj.selected_prompt.weights[p_idx]
                         }
@@ -759,8 +773,10 @@ class PromptControllerPalette extends React.Component{
                             var xd = x1-x0
                             var yd = y1-y0
                             var d = Math.sqrt(cur_obj.selected_prompt.side[0]*cur_obj.selected_prompt.side[0]+cur_obj.selected_prompt.side[1]*cur_obj.selected_prompt.side[1])
-                            width = width + d* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
-                            height = height + d * Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+                            // width = width + d* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
+                            // height = height + d * Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+                            width = width + d* Math.sign(cur_obj.selected_prompt.side[0]) *Math.abs(yd)/Math.sqrt(xd*xd+yd*yd)
+                            height = height + d * Math.sign(cur_obj.selected_prompt.side[1]) * Math.abs(xd)/Math.sqrt(xd*xd+yd*yd)
                         }
 
                             var prev_intermediate_id = AI_stroke_list[i-1]
@@ -868,6 +884,9 @@ class PromptControllerPalette extends React.Component{
                         var height = 0
 
                         for(var p_idx in cur_obj.selected_prompt.prompts){
+                            if(this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]]==undefined){
+                                return
+                            }
                             width = width + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[0]*cur_obj.selected_prompt.weights[p_idx]
                             height = height + this.props.mother_state.prompts[cur_obj.selected_prompt.prompts[p_idx]].position[1]*cur_obj.selected_prompt.weights[p_idx]
                         }
@@ -885,8 +904,10 @@ class PromptControllerPalette extends React.Component{
                             var xd = x1-x0
                             var yd = y1-y0
                             var d = Math.sqrt(cur_obj.selected_prompt.side[0]*cur_obj.selected_prompt.side[0]+cur_obj.selected_prompt.side[1]*cur_obj.selected_prompt.side[1])
-                            width = width + d* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
-                            height = height + d * Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+                            // width = width + d* Math.sign(-xd)* Math.sign(cur_obj.selected_prompt.side[0])* -yd/Math.sqrt(xd*xd+yd*yd)
+                            // height = height + d * Math.sign(-yd)* Math.sign(cur_obj.selected_prompt.side[0])* xd/Math.sqrt(xd*xd+yd*yd)
+                            width = width + d*  Math.sign(cur_obj.selected_prompt.side[0])* Math.abs(yd)/Math.sqrt(xd*xd+yd*yd)
+                            height = height + d * Math.sign(cur_obj.selected_prompt.side[1])* Math.abs(xd)/Math.sqrt(xd*xd+yd*yd)
                         }
 
                         var prev_intermediate_id = AI_stroke_list[idx2-1]
@@ -1011,16 +1032,19 @@ class PromptControllerPalette extends React.Component{
         this.props.mother_state.guidance_scale = obj.guidance_scale
         this.props.mother_state.gen_steps = obj.gen_steps
         // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
-        this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
+        // this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
         // this.props.mother_state.prompts = obj.prompts
-        for(var i in this.props.mother_state.prompts){
-            for(var j in obj.prompts){
-                if(this.props.mother_state.prompts[i]._id == obj.prompts[j]._id){
-                    this.props.mother_state.prompts[i].prompt = obj.prompts[j].prompt
-                    continue
+        if(this.props.mother_state.undo_prompts){
+            for(var i in this.props.mother_state.prompts){
+                for(var j in obj.prompts){
+                    if(this.props.mother_state.prompts[i]._id == obj.prompts[j]._id){
+                        this.props.mother_state.prompts[i].prompt = obj.prompts[j].prompt
+                        continue
+                    }
                 }
             }
         }
+        
         // this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
         this.props.mother_state.latents = obj.latents
         this.props.mother_state.cutxmin = obj.cutxmin

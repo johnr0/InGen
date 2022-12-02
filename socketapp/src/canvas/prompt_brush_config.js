@@ -56,6 +56,7 @@ class PromptBrushConfig extends React.Component{
 
     paintAll(){
         if(this.props.mother_state.selected_prompt==undefined){
+            alert("You have to select prompt before running generation.")
             return
         }
         var el = document.getElementById('AI_area_canvas')
@@ -96,7 +97,7 @@ class PromptBrushConfig extends React.Component{
                             <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='revise')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id!=undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'revise')}>
                                 <div>Revise</div> 
                             </div>
-                            <div className='orange btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', backgroundColor:(this.props.mother_state.stroke_id==undefined)?'':'#333333'}} onPointerDown={this.paintAll.bind(this)}>
+                            <div className='orange btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', backgroundColor:(this.props.mother_state.stroke_id==undefined)?'':'#333333'}} onPointerDown={this.paintAll.bind(this)} disabled={this.props.mother_state.stroke_id!=undefined}>
                                 <div>All</div> 
                             </div>
                         </div>
