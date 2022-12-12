@@ -101,10 +101,10 @@ class PromptControllerDirectional extends React.Component{
                     onChange={this.promptColorChange.bind(this, 'A', val, idx)}></input>
                     {val.isAtext && this.renderTextPromptInput('A', val, idx)}
                     {!val.isAtext && this.renderTextPromptInput('A', val, idx)}
-                    <div className={'btn'} style={{height: 18, width: 28, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.changePromptType.bind(this, 'A', idx)}>
+                    {/* <div className={'btn'} style={{height: 18, width: 28, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.changePromptType.bind(this, 'A', idx)}>
                         {val.isAtext && <i class="fa fa-comment" style={{fontSize:16}} ></i>}
                         {!val.isAtext && <i class="fa fa-image" style={{fontSize:16}} ></i>}
-                    </div>
+                    </div> */}
                 </div>
                 <div style={{marginRight:5, marginLeft:5}}>
                     <input type='range' min='-100' max='100' value={val.value} 
@@ -116,10 +116,10 @@ class PromptControllerDirectional extends React.Component{
                     onChange={this.promptColorChange.bind(this, 'B', val, idx)}></input>
                     {val.isAtext && this.renderTextPromptInput('B', val, idx)}
                     {!val.isAtext && this.renderTextPromptInput('B', val, idx)}
-                    <div className={'btn'} style={{height: 18, width: 28, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.changePromptType.bind(this, 'B', idx)}>
+                    {/* <div className={'btn'} style={{height: 18, width: 28, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.changePromptType.bind(this, 'B', idx)}>
                         {val.isBtext && <i class="fa fa-comment" style={{fontSize:16}} ></i>}
                         {!val.isBtext && <i class="fa fa-image" style={{fontSize:16}} ></i>}
-                    </div>
+                    </div> */}
                 </div>
                 <div className={'btn red'} style={{height: 18, width: 30, padding: 0, lineHeight:'18px', marginLeft: 3}} onPointerDown={this.deletePrompt.bind(this, idx)} disabled={this.props.mother_state.stroke_id!=undefined}>
                     X

@@ -91,12 +91,12 @@ class PromptBrushConfig extends React.Component{
                             <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='draw')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id==undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'draw')}>
                                 <div>Draw</div> 
                             </div>
-                            <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='erase')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id!=undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'erase')}>
+                            {/* <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='erase')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id!=undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'erase')}>
                                 <div>Erase</div> 
                             </div>
                             <div className='btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', opacity:(this.props.mother_state.AI_brush_mode=='revise')?1:0.5, backgroundColor:(this.props.mother_state.stroke_id!=undefined)?'':'#333333'}} onPointerDown={this.copytest.bind(this, 'revise')}>
                                 <div>Revise</div> 
-                            </div>
+                            </div> */}
                             <div className='orange btn' style={{height:'100%', width:'100%', display:'table-cell', lineHeight:'1rem', backgroundColor:(this.props.mother_state.stroke_id==undefined)?'':'#333333'}} onPointerDown={this.paintAll.bind(this)} disabled={this.props.mother_state.stroke_id!=undefined}>
                                 <div>All</div> 
                             </div>
@@ -108,17 +108,17 @@ class PromptBrushConfig extends React.Component{
                 <div style={{marginLeft: 5, flexGrow:1, overflowY:'auto', overflowX: 'hidden'}}>
                         <div style={{display:'flex', justifyContent:'space-between'}}>
                             <div>
-                                <div>Guide Scale:</div> 
+                                {/* <div>Guide Scale:</div>  */}
                                 <div>Single stroke:</div> 
                                 <div>Steps:</div> 
                                 <div>Overcoat:</div> 
                                 {/* <div>Cur Progress:</div>  */}
                             </div>
                             <div style={{flexGrow:1, marginRight:3, marginLeft: 3}}>
-                                <div style={{display:'flex'}}>
+                                {/* <div style={{display:'flex'}}>
                                     <input className={'intext_number_input'} type='range' max={50} min={0} value={this.props.mother_state.guidance_scale} onChange={this.changeValue.bind(this, 'guidance_scale')}></input>
                                     
-                                </div>
+                                </div> */}
                                 <div style={{display:'flex'}}>
                                     <input className={'intext_number_input'} type='range' max={100} min={0} value={this.props.mother_state.single_stroke_ratio} onChange={this.changeValue.bind(this, 'single_stroke_ratio')} style={{opacity:(this.props.mother_state.gen_start)?'0.5':'1'}} disabled={this.props.mother_state.gen_start}></input>
                                     
@@ -134,7 +134,7 @@ class PromptBrushConfig extends React.Component{
                                 </div> */}
                             </div>
                             <div style={{width:35}}>
-                                <div>{this.props.mother_state.guidance_scale}</div>
+                                {/* <div>{this.props.mother_state.guidance_scale}</div> */}
                                 <div>{this.props.mother_state.single_stroke_ratio}%</div>
                                 <div>{this.props.mother_state.gen_steps}</div>
                                 <div>{this.props.mother_state.overcoat_ratio}%</div>

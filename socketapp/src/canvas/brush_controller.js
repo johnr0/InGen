@@ -42,13 +42,13 @@ class BrushController extends Component{
                 <input value={this.props.mother_state.brush_size} type='range' min='1' max='200' orient='vertical' onChange={this.change_brush_size.bind(this)}></input>
             </div>
             <div style={{width:'90%', height: '100%', display: 'inline-block', overflow:'hidden', position:'relative'}}>
-            <div id='brush_size_canvas' width={this.props.mother_state.brush_img.width} height={this.props.mother_state.brush_img.height} 
-                style={{width: this.props.mother_state.erase_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom, 
-                height: this.props.mother_state.erase_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom,
-                position:'absolute', left: 165.6/2-this.props.mother_state.erase_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom/2,
-                top: 184/2-this.props.mother_state.erase_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom/2,
-                borderRadius: '50%', border: 'solid 1px #333333'
-                }}
+                <div id='brush_size_canvas' width={this.props.mother_state.brush_img.width} height={this.props.mother_state.brush_img.height} 
+                    style={{width: this.props.mother_state.brush_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom, 
+                    height: this.props.mother_state.brush_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom,
+                    position:'absolute', left: 165.6/2-this.props.mother_state.brush_size/pixelwidth*this.props.mother_state.boardwidth*this.props.mother_state.boardzoom/2,
+                    top: 184/2-this.props.mother_state.brush_size/pixelheight*this.props.mother_state.boardheight*this.props.mother_state.boardzoom/2,
+                    borderRadius: '50%', border: 'solid 1px #333333'
+                    }}
                 ></div>
             </div>    
             </div>

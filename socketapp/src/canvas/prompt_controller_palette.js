@@ -994,7 +994,7 @@ class PromptControllerPalette extends React.Component{
                         }
 
                         return (<g key={'pointpath_'+idx+'_'+idx2} style={{pointerEvents: (this.state.control_action=='control')?'none':''}}> 
-                            <circle style={{pointerEvents: (this.state.control_action=='control')?'none':''}} cx={width} cy={height} stroke={s_color} fill={f_color} r='5' onPointerDown={this.selectPastPoint.bind(this, idx, idx2)}></circle>
+                            <circle style={{pointerEvents: (this.state.control_action=='control')?'none':''}} cx={width} cy={height} stroke={s_color} strokeWidth={2} fill={f_color} r='5' onPointerDown={this.selectPastPoint.bind(this, idx, idx2)}></circle>
                         </g>)
                     })
                 })

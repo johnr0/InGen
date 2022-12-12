@@ -20,8 +20,8 @@ class Canvas extends React.Component {
         //control_state --> area, move, brush, erase, content_stamp, style_stamp
         // action --> move: idle, move_board
         //            brush: idle, brush
-        boardcenter: [0.3,  0.9], // the view of the board
-        boardzoom: 0.5,
+        boardcenter: [0.2,  1.2], // the view of the board
+        boardzoom: 0.4,
         boardlength:0, 
 
         boardheight: 0,
@@ -280,9 +280,103 @@ class Canvas extends React.Component {
             user = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
         }
         this.setState({user}, () => {
-            this.getUserData(user)
+            if(user.includes('tutorial')){
+                this.setTutorial(user)
+            }else{
+                this.getUserData(user)
+            }
+            
             
         })
+    }
+
+    setTutorial(user){
+        if(user.includes('interpolation')){
+            var prompts = [{
+                    _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    prompt: 'an oil painting of elephant',
+                    position: [0.2,0.1],
+                    color: '#ffeeee',
+                    istext:true
+    
+                },
+                {
+                    _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    prompt: 'an oil painting of rhinoceros',
+                    position: [0.5,0.5],
+                    color: '#333333',
+                    istext:true
+    
+                }]
+            this.setState({prompts})
+
+        }else if(user.includes('directional')){
+            var prompts = [{
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'a modern clay art',
+                position: [0.2,0.1],
+                color: '#ffeeee',
+                istext:true
+            }]
+
+            var directional_prompts = [{
+                    _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                    promptA: 'chaotic',
+                    colorA: '#ffaaaa',
+                    promptB: 'peaceful',
+                    colorB: '#aaffaa',
+                    isAtext: true,
+                    isBtext: true,
+                    value: 0,
+            }]
+
+            this.setState({prompts, directional_prompts})
+
+        }else if(user.includes('switching')){
+            var prompts = [{
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'a banana on the ground',
+                position: [0.2,0.1],
+                color: '#ffeeee',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'a commercial photo of a futuristic car',
+                position: [0.5,0.5],
+                color: '#333333',
+                istext:true
+
+            }]
+            this.setState({prompts})
+        }else if(user.includes('stencil')){
+            var prompts = [{
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'a photo of mountain with trees',
+                position: [0.2,0.1],
+                color: '#ffeeee',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'a photo of a medieval tower',
+                position: [0.5,0.5],
+                color: '#333333',
+                istext:true
+
+            },
+            {
+                _id: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                prompt: 'a photo of a blue sky',
+                position: [0.6,0.3],
+                color: '#830284',
+                istext:true
+
+            }]
+            this.setState({prompts})
+        }
     }
 
     getUserData(user){
@@ -807,7 +901,8 @@ class Canvas extends React.Component {
 
                             }
                         }
-                        console.log(groups_added, new_prompts)
+                        console.log(new_prompt_groups, groups_added, new_prompts)
+                        console.log(new_prompt_groups.concat(JSON.parse(JSON.stringify(obj.prompt_groups))))
                         this.state.prompts = new_prompts
                         this.state.prompt_groups = new_prompt_groups.concat(JSON.parse(JSON.stringify(obj.prompt_groups)))
                     }
@@ -863,9 +958,9 @@ class Canvas extends React.Component {
                     
                     
                     // this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
-                    if(gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length){
-                        this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
-                    }
+                    // if(gen_tick==this.state.AI_stroke_tables[undo_obj.stroke_id][undo_obj.AI_stroke_id].length){
+                    //     this.state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+                    // }
                     obj.prompt_groups = JSON.parse(JSON.stringify(this.state.prompt_groups))
                     
                     
@@ -2634,7 +2729,7 @@ class Canvas extends React.Component {
             </div>
             
             <MainController mother_state={this.state} mother_this={this}></MainController>
-            <LayerController mother_state={this.state} mother_this={this}></LayerController>
+            {/* <LayerController mother_state={this.state} mother_this={this}></LayerController> */}
             
             {/* <SketchpadUndo mother_state={this.state} mother_this={this}></SketchpadUndo> */}
         </div>

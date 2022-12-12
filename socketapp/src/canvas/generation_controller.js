@@ -47,7 +47,7 @@ class GenerationController extends React.Component{
         // this.state.selected_prompt = JSON.parse(JSON.stringify(obj.selected_prompt))
         // this.props.mother_state.directional_prompts = JSON.parse(JSON.stringify(obj.directional_prompts))
         // this.props.mother_state.prompts = obj.prompts
-        this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
+        // this.props.mother_state.prompt_groups = JSON.parse(JSON.stringify(obj.prompt_groups))
         this.props.mother_state.latents = obj.latents
         this.props.mother_state.cutxmin = obj.cutxmin
         this.props.mother_state.cutymin = obj.cutymin
@@ -58,14 +58,14 @@ class GenerationController extends React.Component{
     }
 
     render(){
-        return (<div className={'controller generation_controller'}>
+        return (<div className={'controller generation_controller'} style={{backgroundColor:(this.props.mother_state.stroke_id==undefined)?'#aaaaaa':'#333333'}}>
             <div>
                 Generation Controller
             </div>
             <div style={{display:'flex'}}>
                 <div style={{display:'flex', flexGrow:1, marginRight: 5}}>
                     <input className={'intext_number_input'} type='range' max={this.props.mother_state.gen_steps} min={0} value={this.props.mother_state.gen_tick}
-                        onChange={this.GenChange.bind(this)}></input>
+                        onChange={this.GenChange.bind(this)} disabled={this.props.mother_state.stroke_id==undefined}></input>
                 </div>
                 <div style={{display:'flex'}}>
                     {this.props.mother_state.gen_tick<0 && <div className='btn' style={{width: 100}} disabled>Non</div>}
